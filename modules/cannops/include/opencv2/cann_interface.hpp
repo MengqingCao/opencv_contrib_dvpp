@@ -246,10 +246,10 @@ CV_EXPORTS_W double threshold(InputArray src, OutputArray dst, double thresh, do
 
 @sa cv::merge cv::cuda::merge
  */
-CV_EXPORTS void merge(const NpuMat* src, size_t n, OutputArray dst,
+CV_EXPORTS void merge(const AscendMat* src, size_t n, OutputArray dst,
                       AscendStream& stream = AscendStream::Null());
 /** @overload */
-CV_EXPORTS_W void merge(const std::vector<NpuMat>& src, OutputArray dst,
+CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, OutputArray dst,
                         AscendStream& stream = AscendStream::Null());
 
 /** @brief Copies each plane of a multi-channel matrix into an array.
@@ -260,9 +260,9 @@ CV_EXPORTS_W void merge(const std::vector<NpuMat>& src, OutputArray dst,
 
 @sa cv::split cv::cuda::split
  */
-CV_EXPORTS void split(InputArray src, NpuMat* dst, AscendStream& stream = AscendStream::Null());
+CV_EXPORTS void split(InputArray src, AscendMat* dst, AscendStream& stream = AscendStream::Null());
 /** @overload */
-CV_EXPORTS_W void split(InputArray src, CV_OUT std::vector<NpuMat>& dst,
+CV_EXPORTS_W void split(InputArray src, CV_OUT std::vector<AscendMat>& dst,
                         AscendStream& stream = AscendStream::Null());
 
 /** @brief Transposes a matrix.

@@ -16,7 +16,7 @@ static void arithm_op(InputArray _src1, InputArray _src2, OutputArray _dst, Inpu
     if (isScalar1 && isScalar2)
         CV_Error(Error::StsBadArg, "At list one matrix parameter shoule be passwd.");
 
-    NpuMat src1, src2;
+    AscendMat src1, src2;
     Mat scalar;
 
     if (!isScalar1)
@@ -49,7 +49,7 @@ static void arithm_op(InputArray _src1, InputArray _src2, OutputArray _dst, Inpu
         scalar.convertTo(Mat_<double>(scalar.rows, scalar.cols, &val[0]), CV_64F);
     }
 
-    NpuMat dst = getOutputMat(_dst, size.height, size.width, CV_MAKE_TYPE(ddepth, cn), stream);
+    AscendMat dst = getOutputMat(_dst, size.height, size.width, CV_MAKE_TYPE(ddepth, cn), stream);
 
     if (isScalar1)
         callAscendOperator(src2, val, true, dst, op, stream);
@@ -63,12 +63,12 @@ static void arithm_op(InputArray _src1, InputArray _src2, OutputArray _dst, Inpu
             callAscendOperator(src1, src2, dst, op, stream);
     }
 
-    NpuMat mask = getInputMat(_mask, stream);
+    AscendMat mask = getInputMat(_mask, stream);
     if (!mask.empty())
     {
         int mtype = mask.type();
         CV_Assert((mtype == CV_8UC1 || mtype == CV_8SC1) && mask.size() == size);
-        NpuMat onesMask, castedMask;
+        AscendMat onesMask, castedMask;
         onesMask.create(mask.rows, mask.cols, mask.type());
         callAscendOperator(mask, mask, onesMask, "Div", stream);
         onesMask.convertTo(castedMask, dst.depth(), stream);
@@ -133,7 +133,7 @@ void bitwise_not(InputArray src, OutputArray dst, InputArray mask, AscendStream&
 void addWeighted(InputArray _src1, double alpha, InputArray _src2, double beta, double gamma,
                  OutputArray _dst, int dtype, AscendStream& stream)
 {
-    NpuMat src1, src2;
+    AscendMat src1, src2;
     src1 = getInputMat(_src1, stream);
     src2 = getInputMat(_src2, stream);
 
@@ -144,10 +144,10 @@ void addWeighted(InputArray _src1, double alpha, InputArray _src2, double beta, 
               src1.channels() == src2.channels());
 
     int type = CV_MAKE_TYPE(dtype, src1.channels());
-    NpuMat dst = getOutputMat(_dst, src1.rows, src1.cols, type, stream);
+    AscendMat dst = getOutputMat(_dst, src1.rows, src1.cols, type, stream);
 
     // TODO Consider overflow, should extend type or not?
-    NpuMat src1Weighted(src1.size(), type), src2Weighted(src1.size(), type),
+    AscendMat src1Weighted(src1.size(), type), src2Weighted(src1.size(), type),
         srcWeightedSumRet(src1.size(), type);
     muls(src1, alpha, src1Weighted, stream);
     muls(src2, beta, src2Weighted, stream);
@@ -157,14 +157,14 @@ void addWeighted(InputArray _src1, double alpha, InputArray _src2, double beta, 
     syncOutput(dst, _dst, stream);
 }
 
-double threshold(NpuMat& src, NpuMat& dst, double thresh, double maxval, int type,
+double threshold(AscendMat& src, AscendMat& dst, double thresh, double maxval, int type,
                  AscendStream& stream)
 {
     // ThresholdTypes is defined in opencv2/imgproc, This type is the only Symbol we need.
     // Add imgproc to dependence is too heavy, use magic number instead.
     CV_Assert(type <= 4 /*THRESH_TOZERO_INV*/);
 
-    NpuMat threshMat(src.size(), src.type());
+    AscendMat threshMat(src.size(), src.type());
 
     AclFloatAttribute attr("threshold", (float)thresh);
     std::vector<AclAttribute*> attrs{&attr};
@@ -174,8 +174,8 @@ double threshold(NpuMat& src, NpuMat& dst, double thresh, double maxval, int typ
     // THRESH_BINARY_INV = 1, THRESH_TRUNC = 2, THRESH_TOZERO_INV = 4,
     if (type == 1 || type == 2 || type == 4)
     {
-        NpuMat threshInvMat(src.size(), src.type());
-        NpuMat ones(src.size(), src.type());
+        AscendMat threshInvMat(src.size(), src.type());
+        AscendMat ones(src.size(), src.type());
         Scalar s(1, 1, 1, 1);
         ones.setTo(s, stream);
         callAscendOperator(ones, threshMat, threshInvMat, "Sub", stream);
@@ -186,8 +186,8 @@ double threshold(NpuMat& src, NpuMat& dst, double thresh, double maxval, int typ
         }
         else if (type == 2)
         {
-            NpuMat ToZeroInvMat(src.size(), src.type());
-            NpuMat TruncMat(src.size(), src.type());
+            AscendMat ToZeroInvMat(src.size(), src.type());
+            AscendMat TruncMat(src.size(), src.type());
             callAscendOperator(threshInvMat, src, ToZeroInvMat, "Mul", stream);
             muls(threshMat, thresh, TruncMat, stream);
             callAscendOperator(ToZeroInvMat, TruncMat, dst, "Add", stream);
@@ -218,15 +218,15 @@ double threshold(NpuMat& src, NpuMat& dst, double thresh, double maxval, int typ
 double threshold(InputArray _src, OutputArray _dst, double thresh, double maxval, int type,
                  AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
-    NpuMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
+    AscendMat src = getInputMat(_src, stream);
+    AscendMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
     double ret = threshold(src, dst, thresh, maxval, type, stream);
     syncOutput(dst, _dst, stream);
     return ret;
 }
 
 #define OpScalar(name, op)                                                        \
-    void name(const NpuMat& arr, float scalar, NpuMat& dst, AscendStream& stream) \
+    void name(const AscendMat& arr, float scalar, AscendMat& dst, AscendStream& stream) \
     {                                                                             \
         AclFloatAttribute attr("value", scalar);                                  \
         std::vector<AclAttribute*> attrs{&attr};                                  \

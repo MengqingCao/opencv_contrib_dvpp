@@ -20,12 +20,12 @@ TEST(IMGPROC, MERGE)
 
     cv::cann::setDevice(0);
 
-    NpuMat a1, a2, a3;
+    AscendMat a1, a2, a3;
     a1.upload(m1);
     a2.upload(m2);
     a3.upload(m3);
-    NpuMat aclChannels[3] = {a1, a2, a3};
-    std::vector<NpuMat> aclChannelsVector;
+    AscendMat aclChannels[3] = {a1, a2, a3};
+    std::vector<AscendMat> aclChannelsVector;
     aclChannelsVector.push_back(a1);
     aclChannelsVector.push_back(a2);
     aclChannelsVector.push_back(a3);
@@ -49,8 +49,8 @@ TEST(IMGPROC, SPLIT)
 
     cv::cann::setDevice(0);
 
-    NpuMat aclChannels[3];
-    std::vector<NpuMat> aclChannelsVector;
+    AscendMat aclChannels[3];
+    std::vector<AscendMat> aclChannelsVector;
 
     cv::cann::split(m, aclChannels);
     cv::cann::split(m, aclChannelsVector);
@@ -126,7 +126,7 @@ TEST(CORE, CROP)
     Mat cpuOpRet, checker, cpuMat = randomMat(6, 6, CV_32SC3, 0.0, 255.0);
     Rect b(1, 2, 4, 4);
     Mat cropped_cv(cpuMat, b);
-    NpuMat cropped_cann(cpuMat, b);
+    AscendMat cropped_cann(cpuMat, b);
     cropped_cann.download(checker);
     EXPECT_MAT_NEAR(cropped_cv, checker, 1e-10);
 }

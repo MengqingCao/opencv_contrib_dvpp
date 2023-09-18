@@ -10,16 +10,16 @@ namespace cv
 {
 namespace cann
 {
-void adds(const NpuMat& arr, float scalar, NpuMat& dst, AscendStream& stream);
-void muls(const NpuMat& arr, float scalar, NpuMat& dst, AscendStream& stream);
-void transData(const NpuMat& src, NpuMat& dst, const char* from, const char* to,
+void adds(const AscendMat& arr, float scalar, AscendMat& dst, AscendStream& stream);
+void muls(const AscendMat& arr, float scalar, AscendMat& dst, AscendStream& stream);
+void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
                AscendStream& stream);
-void transpose(const NpuMat& src, int64_t* perm, NpuMat& dst, AscendStream& stream);
-void flip(const NpuMat& src, std::vector<int32_t>& asixs, NpuMat& dst, AscendStream& stream);
-void merge(const NpuMat* src, size_t n, NpuMat& dst, AscendStream& stream);
-void split(const NpuMat& src, NpuMat* dst, AscendStream& stream);
+void transpose(const AscendMat& src, int64_t* perm, AscendMat& dst, AscendStream& stream);
+void flip(const AscendMat& src, std::vector<int32_t>& asixs, AscendMat& dst, AscendStream& stream);
+void merge(const AscendMat* src, size_t n, AscendMat& dst, AscendStream& stream);
+void split(const AscendMat& src, AscendMat* dst, AscendStream& stream);
 
-double threshold(NpuMat& src, NpuMat& dst, double thresh, double maxval, int type,
+double threshold(AscendMat& src, AscendMat& dst, double thresh, double maxval, int type,
                  AscendStream& stream);
 } // namespace cann
 } // namespace cv

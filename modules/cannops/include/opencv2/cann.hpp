@@ -28,16 +28,16 @@ class AscendStream;
 //! @{
 
 //===================================================================================
-// NpuMat
+// AscendMat
 //===================================================================================
 
 /** @brief Base storage class for NPU memory with reference counting.
- * NpuMat class has a similar interface with Mat and NpuMat, and work on [Ascend
+ * AscendMat class has a similar interface with Mat and AscendMat, and work on [Ascend
  * NPU](https://www.hiascend.com/) backend.
  * @sa Mat cuda::GpuMat
  */
 class AscendStream;
-class CV_EXPORTS_W NpuMat
+class CV_EXPORTS_W AscendMat
 {
 public:
     class CV_EXPORTS_W Allocator
@@ -47,85 +47,85 @@ public:
         // basic allocator
         virtual std::shared_ptr<uchar> allocate(size_t size) = 0;
         // allocator must fill data, step and refcount fields
-        virtual bool allocate(NpuMat* mat, int rows, int cols, size_t elemSize) = 0;
+        virtual bool allocate(AscendMat* mat, int rows, int cols, size_t elemSize) = 0;
     };
 
     /**
-     * @brief Create default allocator for NpuMat. This allocator alloc memory from device for
+     * @brief Create default allocator for AscendMat. This allocator alloc memory from device for
      * specific size.
      */
-    CV_WRAP static NpuMat::Allocator* defaultAllocator();
+    CV_WRAP static AscendMat::Allocator* defaultAllocator();
 
     /**
-     * @brief Set allocator for NpuMat.
+     * @brief Set allocator for AscendMat.
      * @param allocator
      */
-    CV_WRAP static void setDefaultAllocator(NpuMat::Allocator* allocator);
+    CV_WRAP static void setDefaultAllocator(AscendMat::Allocator* allocator);
 
     //! default constructor
-    CV_WRAP explicit NpuMat(NpuMat::Allocator* allocator_ = NpuMat::defaultAllocator());
+    CV_WRAP explicit AscendMat(AscendMat::Allocator* allocator_ = AscendMat::defaultAllocator());
 
-    //! constructs NpuMat of the specified size and type
-    CV_WRAP NpuMat(int rows, int cols, int type,
-                   NpuMat::Allocator* allocator = NpuMat::defaultAllocator());
-    //! constructs NpuMat of the specified size and type
-    CV_WRAP NpuMat(Size size, int type, NpuMat::Allocator* allocator = NpuMat::defaultAllocator());
+    //! constructs AscendMat of the specified size and type
+    CV_WRAP AscendMat(int rows, int cols, int type,
+                   AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
+    //! constructs AscendMat of the specified size and type
+    CV_WRAP AscendMat(Size size, int type, AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
 
-    //! constructs NpuMat and fills it with the specified value s
-    CV_WRAP NpuMat(int rows, int cols, int type, Scalar& s,
-                   NpuMat::Allocator* allocator = NpuMat::defaultAllocator());
-    //! constructs NpuMat and fills it with the specified value s
-    CV_WRAP NpuMat(Size size, int type, Scalar& s,
-                   NpuMat::Allocator* allocator = NpuMat::defaultAllocator());
+    //! constructs AscendMat and fills it with the specified value s
+    CV_WRAP AscendMat(int rows, int cols, int type, Scalar& s,
+                   AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
+    //! constructs AscendMat and fills it with the specified value s
+    CV_WRAP AscendMat(Size size, int type, Scalar& s,
+                   AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
 
     //! copy constructor
-    CV_WRAP NpuMat(const NpuMat& m);
+    CV_WRAP AscendMat(const AscendMat& m);
 
-    //! constructs NpuMat by crop a certain area from another
-    CV_WRAP NpuMat(InputArray _m, const Rect& roi);
-    CV_WRAP NpuMat(InputArray _m, const Rect& roi, AscendStream& stream);
+    //! constructs AscendMat by crop a certain area from another
+    CV_WRAP AscendMat(InputArray _m, const Rect& roi);
+    CV_WRAP AscendMat(InputArray _m, const Rect& roi, AscendStream& stream);
 
-    //! builds NpuMat from host memory (Blocking call)
-    CV_WRAP explicit NpuMat(InputArray arr, AscendStream& stream,
-                            NpuMat::Allocator* allocator = NpuMat::defaultAllocator());
+    //! builds AscendMat from host memory (Blocking call)
+    CV_WRAP explicit AscendMat(InputArray arr, AscendStream& stream,
+                            AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
 
     //! assignment operators
-    NpuMat& operator=(const NpuMat& m);
+    AscendMat& operator=(const AscendMat& m);
 
-    //! sets some of the NpuMat elements to s (Blocking call)
-    CV_WRAP NpuMat& setTo(const Scalar& s);
-    //! sets some of the NpuMat elements to s (Non-Blocking call)
-    CV_WRAP NpuMat& setTo(const Scalar& s, AscendStream& stream);
+    //! sets some of the AscendMat elements to s (Blocking call)
+    CV_WRAP AscendMat& setTo(const Scalar& s);
+    //! sets some of the AscendMat elements to s (Non-Blocking call)
+    CV_WRAP AscendMat& setTo(const Scalar& s, AscendStream& stream);
 
-    //! sets all of the NpuMat elements to float (Blocking call)
-    CV_WRAP NpuMat& setTo(float sc);
+    //! sets all of the AscendMat elements to float (Blocking call)
+    CV_WRAP AscendMat& setTo(float sc);
 
-    //! sets all of the NpuMat elements to float (Non-Blocking call)
-    CV_WRAP NpuMat& setTo(float sc, AscendStream& stream);
+    //! sets all of the AscendMat elements to float (Non-Blocking call)
+    CV_WRAP AscendMat& setTo(float sc, AscendStream& stream);
 
     //! swaps with other smart pointer
-    CV_WRAP void swap(NpuMat& mat);
+    CV_WRAP void swap(AscendMat& mat);
 
-    //! allocates new NpuMat data unless the NpuMat already has specified size and type
+    //! allocates new AscendMat data unless the AscendMat already has specified size and type
     CV_WRAP void create(int rows, int cols, int type);
 
-    //! upload host memory data to NpuMat (Blocking call)
+    //! upload host memory data to AscendMat (Blocking call)
     CV_WRAP void upload(InputArray arr);
-    //! upload host memory data to NpuMat (Non-Blocking call)
+    //! upload host memory data to AscendMat (Non-Blocking call)
     CV_WRAP void upload(InputArray arr, AscendStream& stream);
 
-    //! download data from NpuMat to host (Blocking call)
+    //! download data from AscendMat to host (Blocking call)
     CV_WRAP void download(OutputArray dst) const;
-    //! download data from NpuMat to host (Non-Blocking call)
+    //! download data from AscendMat to host (Non-Blocking call)
     CV_WRAP void download(OutputArray dst, AscendStream& stream) const;
 
-    //! converts NpuMat to another datatype (Blocking call)
-    CV_WRAP void convertTo(CV_OUT NpuMat& dst, int rtype) const;
+    //! converts AscendMat to another datatype (Blocking call)
+    CV_WRAP void convertTo(CV_OUT AscendMat& dst, int rtype) const;
 
-    //! converts NpuMat to another datatype (Non-Blocking call)
-    CV_WRAP void convertTo(CV_OUT NpuMat& dst, int rtype, AscendStream& stream) const;
+    //! converts AscendMat to another datatype (Non-Blocking call)
+    CV_WRAP void convertTo(CV_OUT AscendMat& dst, int rtype, AscendStream& stream) const;
 
-    //! returns true iff the NpuMat data is continuous
+    //! returns true iff the AscendMat data is continuous
     //! (i.e. when there are no gaps between successive rows)
     CV_WRAP bool isContinuous() const;
 
@@ -147,10 +147,10 @@ public:
     //! returns step/elemSize1()
     CV_WRAP size_t step1() const;
 
-    //! returns NpuMat size : width == number of columns, height == number of rows
+    //! returns AscendMat size : width == number of columns, height == number of rows
     CV_WRAP Size size() const;
 
-    //! returns true if NpuMat data is NULL
+    //! returns true if AscendMat data is NULL
     CV_WRAP bool empty() const;
 
     //! internal use method: updates the continuity flag
@@ -279,13 +279,13 @@ CV_EXPORTS_W AscendStream wrapStream(size_t AscendStreamAddress);
 //! @{
 
 //! Get Ascend matrix object from Input array, upload matrix memory if need. (Non-Blocking call)
-NpuMat getInputMat(InputArray src, AscendStream& stream);
+AscendMat getInputMat(InputArray src, AscendStream& stream);
 
 //! Get Ascend matrix object from Output array, upload matrix memory if need.
-NpuMat getOutputMat(OutputArray dst, int rows, int cols, int type, AscendStream& stream);
+AscendMat getOutputMat(OutputArray dst, int rows, int cols, int type, AscendStream& stream);
 
 //! Sync output matrix to Output array, download matrix memory if need.
-void syncOutput(const NpuMat& dst, OutputArray _dst, AscendStream& stream);
+void syncOutput(const AscendMat& dst, OutputArray _dst, AscendStream& stream);
 
 /**
  * @brief Choose Ascend npu device.

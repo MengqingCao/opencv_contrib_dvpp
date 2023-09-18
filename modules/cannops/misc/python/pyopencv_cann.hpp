@@ -9,19 +9,19 @@
 
 #include "opencv2/cann.hpp"
 
-typedef std::vector<cann::NpuMat> vector_NpuMat;
-typedef cann::NpuMat::Allocator NpuMat_Allocator;
+typedef std::vector<cann::AscendMat> vector_AscendMat;
+typedef cann::AscendMat::Allocator AscendMat_Allocator;
 
-CV_PY_TO_CLASS(cann::NpuMat);
+CV_PY_TO_CLASS(cann::AscendMat);
 CV_PY_TO_CLASS(cann::AscendStream);
 
-CV_PY_TO_CLASS_PTR(cann::NpuMat);
-CV_PY_TO_CLASS_PTR(cann::NpuMat::Allocator);
+CV_PY_TO_CLASS_PTR(cann::AscendMat);
+CV_PY_TO_CLASS_PTR(cann::AscendMat::Allocator);
 
-CV_PY_FROM_CLASS(cann::NpuMat);
+CV_PY_FROM_CLASS(cann::AscendMat);
 CV_PY_FROM_CLASS(cann::AscendStream);
 
-CV_PY_FROM_CLASS_PTR(cann::NpuMat::Allocator);
+CV_PY_FROM_CLASS_PTR(cann::AscendMat::Allocator);
 
 #endif // HAVE_OPENCV_CORE
 

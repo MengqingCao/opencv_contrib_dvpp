@@ -237,15 +237,15 @@ TEST(ELEMENTWISE_OP, MAT_THRESHOLD_1)
 {
     Mat cpuOpRet, checker, cpuMat = randomMat(10, 10, CV_16SC3, 0.0, 255.0);
 
-    NpuMat npuMat, npuMat16F, aclOpRet, aclOpRet16S;
+    AscendMat ascendMat, ascendMat16F, aclOpRet, aclOpRet16S;
     cv::cann::setDevice(DEVICE_ID);
-    npuMat.upload(cpuMat);
-    npuMat.convertTo(npuMat16F, CV_16F);
+    ascendMat.upload(cpuMat);
+    ascendMat.convertTo(ascendMat16F, CV_16F);
 
     for (int i = 0; i <= 4; i++)
     {
         cv::threshold(cpuMat, cpuOpRet, 128, 250, i);
-        cv::cann::threshold(npuMat16F, aclOpRet, 128, 250, i);
+        cv::cann::threshold(ascendMat16F, aclOpRet, 128, 250, i);
         aclOpRet.convertTo(aclOpRet16S, CV_16S);
         aclOpRet16S.download(checker);
 

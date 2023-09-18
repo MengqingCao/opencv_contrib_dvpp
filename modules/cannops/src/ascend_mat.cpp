@@ -7,11 +7,11 @@
 
 namespace
 {
-class DefaultAllocator : public cv::cann::NpuMat::Allocator
+class DefaultAllocator : public cv::cann::AscendMat::Allocator
 {
 public:
     std::shared_ptr<uchar> allocate(size_t size) CV_OVERRIDE;
-    bool allocate(cv::cann::NpuMat* mat, int rows, int cols, size_t elemSize) CV_OVERRIDE;
+    bool allocate(cv::cann::AscendMat* mat, int rows, int cols, size_t elemSize) CV_OVERRIDE;
 };
 
 std::shared_ptr<uchar> DefaultAllocator::allocate(size_t size)
@@ -21,7 +21,7 @@ std::shared_ptr<uchar> DefaultAllocator::allocate(size_t size)
     return std::shared_ptr<uchar>(data, [](void* ptr) { cv::cann::aclrtFreeWarpper(ptr); });
 }
 
-bool DefaultAllocator::allocate(cv::cann::NpuMat* mat, int rows, int cols, size_t elemSize)
+bool DefaultAllocator::allocate(cv::cann::AscendMat* mat, int rows, int cols, size_t elemSize)
 {
     mat->data = allocate(elemSize * cols * rows);
     mat->step = cols * elemSize;
@@ -30,16 +30,16 @@ bool DefaultAllocator::allocate(cv::cann::NpuMat* mat, int rows, int cols, size_
 }
 
 DefaultAllocator cannDefaultAllocator;
-cv::cann::NpuMat::Allocator* g_defaultAllocator = &cannDefaultAllocator;
+cv::cann::AscendMat::Allocator* g_defaultAllocator = &cannDefaultAllocator;
 } // namespace
 
 namespace cv
 {
 namespace cann
 {
-NpuMat::Allocator* NpuMat::defaultAllocator() { return g_defaultAllocator; }
+AscendMat::Allocator* AscendMat::defaultAllocator() { return g_defaultAllocator; }
 
-void NpuMat::setDefaultAllocator(NpuMat::Allocator* allocator)
+void AscendMat::setDefaultAllocator(AscendMat::Allocator* allocator)
 {
     CV_Assert(allocator != 0);
     g_defaultAllocator = allocator;
@@ -69,14 +69,14 @@ static int updateContinuityFlag(int flags, int dims, const int* size, const size
     return flags & ~Mat::CONTINUOUS_FLAG;
 }
 
-void NpuMat::updateContinuityFlag()
+void AscendMat::updateContinuityFlag()
 {
     int sz[] = {rows, cols};
     size_t steps[] = {step, elemSize()};
     flags = cv::cann::updateContinuityFlag(flags, 2, sz, steps);
 }
 
-void NpuMat::create(int _rows, int _cols, int _type)
+void AscendMat::create(int _rows, int _cols, int _type)
 {
     CV_DbgAssert(_rows >= 0 && _cols >= 0);
 
@@ -111,9 +111,9 @@ void NpuMat::create(int _rows, int _cols, int _type)
     }
 }
 
-void NpuMat::upload(InputArray arr) { upload(arr, AscendStream::Null()); }
+void AscendMat::upload(InputArray arr) { upload(arr, AscendStream::Null()); }
 
-void NpuMat::upload(InputArray arr, AscendStream& stream)
+void AscendMat::upload(InputArray arr, AscendStream& stream)
 {
     Mat mat = arr.getMat();
     CV_DbgAssert(!mat.empty());
@@ -121,9 +121,9 @@ void NpuMat::upload(InputArray arr, AscendStream& stream)
     aclrtMemcpy2dWarpper(data, 0, step, mat.data, mat.step[0], cols * elemSize(), rows, stream);
 }
 
-void NpuMat::download(OutputArray dst) const { download(dst, AscendStream::Null()); }
+void AscendMat::download(OutputArray dst) const { download(dst, AscendStream::Null()); }
 
-void NpuMat::download(OutputArray _dst, AscendStream& stream) const
+void AscendMat::download(OutputArray _dst, AscendStream& stream) const
 {
     CV_DbgAssert(!empty());
 
@@ -132,14 +132,14 @@ void NpuMat::download(OutputArray _dst, AscendStream& stream) const
     aclrtMemcpy2dWarpper(dst.data, dst.step[0], data, 0, step, cols * elemSize(), rows, stream);
 }
 
-NpuMat::NpuMat(int rows_, int cols_, int type_, Scalar& s_, NpuMat::Allocator* allocator_)
+AscendMat::AscendMat(int rows_, int cols_, int type_, Scalar& s_, AscendMat::Allocator* allocator_)
     : flags(0), rows(rows_), cols(cols_), step(0), datastart(0), dataend(0), allocator(allocator_)
 {
     create(rows_, cols_, type_);
     setTo(s_);
 }
 
-NpuMat::NpuMat(Size size_, int type_, Scalar& s_, NpuMat::Allocator* allocator_)
+AscendMat::AscendMat(Size size_, int type_, Scalar& s_, AscendMat::Allocator* allocator_)
     : flags(0), rows(size_.height), cols(size_.width), step(0), datastart(0), dataend(0),
       allocator(allocator_)
 {
@@ -147,12 +147,12 @@ NpuMat::NpuMat(Size size_, int type_, Scalar& s_, NpuMat::Allocator* allocator_)
     setTo(s_);
 }
 
-NpuMat::NpuMat(InputArray _m, const Rect& roi) : NpuMat(_m, roi, AscendStream::Null()) {}
+AscendMat::AscendMat(InputArray _m, const Rect& roi) : AscendMat(_m, roi, AscendStream::Null()) {}
 
-NpuMat::NpuMat(InputArray _m, const Rect& roi, AscendStream& stream)
+AscendMat::AscendMat(InputArray _m, const Rect& roi, AscendStream& stream)
     : rows(roi.height), cols(roi.width), allocator(defaultAllocator())
 {
-    NpuMat m = getInputMat(_m, stream);
+    AscendMat m = getInputMat(_m, stream);
     step = m.step;
     data = m.data;
     flags = m.flags;
@@ -173,9 +173,9 @@ NpuMat::NpuMat(InputArray _m, const Rect& roi, AscendStream& stream)
     updateContinuityFlag();
 }
 
-NpuMat& NpuMat::setTo(const Scalar& sc) { return setTo(sc, AscendStream::Null()); }
+AscendMat& AscendMat::setTo(const Scalar& sc) { return setTo(sc, AscendStream::Null()); }
 
-NpuMat& NpuMat::setTo(const Scalar& sc, AscendStream& stream)
+AscendMat& AscendMat::setTo(const Scalar& sc, AscendStream& stream)
 {
     size_t totalBytes = (size_t)rows * cols * elemSize();
     if (totalBytes == 0)
@@ -183,7 +183,7 @@ NpuMat& NpuMat::setTo(const Scalar& sc, AscendStream& stream)
 
     aclrtMemsetWarpper(data, 0, totalBytes, stream);
 
-    NpuMat dst(rows, cols, type());
+    AscendMat dst(rows, cols, type());
     // TODO use AssignAdd to avoid memcpy, or use broadcase.
     callAscendOperator(*this, sc, false, dst, "Add", stream);
     swap(dst);
@@ -191,9 +191,9 @@ NpuMat& NpuMat::setTo(const Scalar& sc, AscendStream& stream)
     return *this;
 }
 
-NpuMat& NpuMat::setTo(float sc) { return setTo(sc, AscendStream::Null()); }
+AscendMat& AscendMat::setTo(float sc) { return setTo(sc, AscendStream::Null()); }
 
-NpuMat& NpuMat::setTo(float sc, AscendStream& stream)
+AscendMat& AscendMat::setTo(float sc, AscendStream& stream)
 {
     size_t totalBytes = (size_t)rows * cols * elemSize();
     if (totalBytes == 0)
@@ -201,46 +201,46 @@ NpuMat& NpuMat::setTo(float sc, AscendStream& stream)
 
     aclrtMemsetWarpper(data, 0, totalBytes, stream);
 
-    NpuMat dst(rows, cols, type());
+    AscendMat dst(rows, cols, type());
     adds(*this, sc, dst, stream);
     swap(dst);
 
     return *this;
 }
 
-void NpuMat::convertTo(NpuMat& dst, int rtype) const
+void AscendMat::convertTo(AscendMat& dst, int rtype) const
 {
     convertTo(dst, rtype, AscendStream::Null());
 }
 
-void NpuMat::convertTo(NpuMat& dst, int _rtype, AscendStream& _stream) const
+void AscendMat::convertTo(AscendMat& dst, int _rtype, AscendStream& _stream) const
 {
     int cn = channels();
     dst.create(rows, cols, CV_MAKE_TYPE(_rtype, cn));
     callAscendOperator(*this, dst, "Cast", _stream);
 }
 
-static NpuMat getNpuMat(InputArray arr)
+static AscendMat getAscendMat(InputArray arr)
 {
     _InputArray::KindFlag k = arr.kind();
-    if (k == _InputArray::NPU_MAT)
+    if (k == _InputArray::ASCEND_MAT)
     {
-        const cann::NpuMat* n_mat = (const cann::NpuMat*)arr.getObj();
+        const cann::AscendMat* n_mat = (const cann::AscendMat*)arr.getObj();
         return *n_mat;
     }
 
     if (k == _InputArray::NONE)
-        return cann::NpuMat();
+        return cann::AscendMat();
 
-    CV_Error(cv::Error::StsNotImplemented, "getNpuMat is available only for cann::NpuMat");
+    CV_Error(cv::Error::StsNotImplemented, "getAscendMat is available only for cann::AscendMat");
 }
 
-NpuMat getInputMat(InputArray _src, AscendStream& stream)
+AscendMat getInputMat(InputArray _src, AscendStream& stream)
 {
-    NpuMat src;
-    if (_src.kind() == _InputArray::NPU_MAT)
+    AscendMat src;
+    if (_src.kind() == _InputArray::ASCEND_MAT)
     {
-        src = getNpuMat(_src);
+        src = getAscendMat(_src);
     }
     else if (!_src.empty())
     {
@@ -249,14 +249,14 @@ NpuMat getInputMat(InputArray _src, AscendStream& stream)
     return src;
 }
 
-NpuMat getOutputMat(OutputArray _dst, int rows, int cols, int type, AscendStream& stream)
+AscendMat getOutputMat(OutputArray _dst, int rows, int cols, int type, AscendStream& stream)
 {
     CV_UNUSED(stream);
-    NpuMat dst;
-    if (_dst.kind() == _InputArray::NPU_MAT)
+    AscendMat dst;
+    if (_dst.kind() == _InputArray::ASCEND_MAT)
     {
-        ((cann::NpuMat*)(_dst.getObj()))->create(rows, cols, type);
-        dst = getNpuMat(_dst);
+        ((cann::AscendMat*)(_dst.getObj()))->create(rows, cols, type);
+        dst = getAscendMat(_dst);
     }
     else
     {
@@ -265,9 +265,9 @@ NpuMat getOutputMat(OutputArray _dst, int rows, int cols, int type, AscendStream
     return dst;
 }
 
-void syncOutput(const NpuMat& dst, OutputArray _dst, AscendStream& stream)
+void syncOutput(const AscendMat& dst, OutputArray _dst, AscendStream& stream)
 {
-    if (_dst.kind() != _InputArray::NPU_MAT)
+    if (_dst.kind() != _InputArray::ASCEND_MAT)
     {
         dst.download(_dst, stream);
     }

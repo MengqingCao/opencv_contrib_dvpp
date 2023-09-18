@@ -24,7 +24,7 @@ static inline aclFormat getAclFormat(const char* type)
     }
 }
 
-void transData(const NpuMat& src, NpuMat& dst, const char* from, const char* to,
+void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
                AscendStream& stream)
 {
     AclStringAttribute fromAttr("src_format", from);
@@ -37,7 +37,7 @@ void transData(const NpuMat& src, NpuMat& dst, const char* from, const char* to,
     callAscendOperator("TransData", srcTensors, dstTensors, stream, attrs);
 }
 
-void merge(const NpuMat* src, size_t n, NpuMat& dst, AscendStream& stream)
+void merge(const AscendMat* src, size_t n, AscendMat& dst, AscendStream& stream)
 {
     if (src == nullptr || n < 2)
         return;
@@ -67,19 +67,19 @@ void merge(const NpuMat* src, size_t n, NpuMat& dst, AscendStream& stream)
     callAscendOperator("ConcatD", srcTensors, dstTensors, stream, attrs);
 }
 
-void merge(const NpuMat* src, size_t n, OutputArray _dst, AscendStream& stream)
+void merge(const AscendMat* src, size_t n, OutputArray _dst, AscendStream& stream)
 {
-    NpuMat dst = getOutputMat(_dst, src->rows, src->cols, CV_MAKE_TYPE(src->depth(), n), stream);
+    AscendMat dst = getOutputMat(_dst, src->rows, src->cols, CV_MAKE_TYPE(src->depth(), n), stream);
     merge(src, n, dst, stream);
     syncOutput(dst, _dst, stream);
 }
 
-void merge(const std::vector<NpuMat>& src, OutputArray dst, AscendStream& stream)
+void merge(const std::vector<AscendMat>& src, OutputArray dst, AscendStream& stream)
 {
     merge(&src[0], src.size(), dst, stream);
 }
 
-void split(const NpuMat& src, NpuMat* dst, AscendStream& stream)
+void split(const AscendMat& src, AscendMat* dst, AscendStream& stream)
 {
     if (src.empty() || dst == nullptr)
         return;
@@ -96,20 +96,20 @@ void split(const NpuMat& src, NpuMat* dst, AscendStream& stream)
     callAscendOperator(src, dst, cn, "SplitD", stream, attrs);
 }
 
-void split(InputArray _src, NpuMat* dst, AscendStream& stream)
+void split(InputArray _src, AscendMat* dst, AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
     split(src, dst, stream);
 }
 
-void split(InputArray _src, std::vector<NpuMat>& dst, AscendStream& stream)
+void split(InputArray _src, std::vector<AscendMat>& dst, AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
     dst.resize(src.channels());
     split(_src, &dst[0], stream);
 }
 
-void transpose(const NpuMat& src, int64_t* perm, NpuMat& dst, AscendStream& stream)
+void transpose(const AscendMat& src, int64_t* perm, AscendMat& dst, AscendStream& stream)
 {
     AclListIntAttribute permAttr("perm", 4, perm);
     std::vector<AclAttribute*> attrs{&permAttr};
@@ -122,16 +122,16 @@ void transpose(const NpuMat& src, int64_t* perm, NpuMat& dst, AscendStream& stre
 
 void transpose(InputArray _src, OutputArray _dst, AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
 
-    NpuMat dst = getOutputMat(_dst, src.cols, src.rows, src.type(), stream);
+    AscendMat dst = getOutputMat(_dst, src.cols, src.rows, src.type(), stream);
 
     int64_t perm[] = {0, 2, 1, 3};
     transpose(src, perm, dst, stream);
     syncOutput(dst, _dst, stream);
 }
 
-void flip(const NpuMat& src, std::vector<int32_t>& asixs, NpuMat& dst, AscendStream& stream)
+void flip(const AscendMat& src, std::vector<int32_t>& asixs, AscendMat& dst, AscendStream& stream)
 {
     size_t dataSize = asixs.size() * sizeof(int32_t);
     std::shared_ptr<uchar> axisPtr = mallocAndUpload(&asixs.at(0), dataSize, stream);
@@ -148,8 +148,8 @@ void flip(const NpuMat& src, std::vector<int32_t>& asixs, NpuMat& dst, AscendStr
 
 void flip(InputArray _src, OutputArray _dst, int flipCode, AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
-    NpuMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
+    AscendMat src = getInputMat(_src, stream);
+    AscendMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
 
     std::vector<int32_t> asix;
     if (flipCode == 0)
@@ -172,7 +172,7 @@ void flip(InputArray _src, OutputArray _dst, int flipCode, AscendStream& stream)
 void rotate(InputArray _src, OutputArray _dst, int rotateMode, AscendStream& stream)
 {
     CV_Assert(_src.dims() <= 2);
-    NpuMat src = getInputMat(_src, stream), dst, tempMat;
+    AscendMat src = getInputMat(_src, stream), dst, tempMat;
     switch (rotateMode)
     {
         case ROTATE_90_CLOCKWISE:

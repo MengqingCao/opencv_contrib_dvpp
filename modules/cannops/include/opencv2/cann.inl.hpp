@@ -11,13 +11,13 @@ namespace cv
 {
 namespace cann
 {
-inline NpuMat::NpuMat(NpuMat::Allocator* allocator_)
+inline AscendMat::AscendMat(AscendMat::Allocator* allocator_)
     : flags(0), rows(0), cols(0), step(0), datastart(0), dataend(0),
       allocator(allocator_)
 {
 }
 
-inline NpuMat::NpuMat(int rows_, int cols_, int type_, NpuMat::Allocator* allocator_)
+inline AscendMat::AscendMat(int rows_, int cols_, int type_, AscendMat::Allocator* allocator_)
     : flags(0), rows(0), cols(0), step(0), datastart(0), dataend(0),
       allocator(allocator_)
 {
@@ -25,7 +25,7 @@ inline NpuMat::NpuMat(int rows_, int cols_, int type_, NpuMat::Allocator* alloca
         create(rows_, cols_, type_);
 }
 
-inline NpuMat::NpuMat(Size size_, int type_, NpuMat::Allocator* allocator_)
+inline AscendMat::AscendMat(Size size_, int type_, AscendMat::Allocator* allocator_)
     : flags(0), rows(0), cols(0), step(0), datastart(0), dataend(0),
       allocator(allocator_)
 {
@@ -33,30 +33,30 @@ inline NpuMat::NpuMat(Size size_, int type_, NpuMat::Allocator* allocator_)
         create(size_.height, size_.width, type_);
 }
 
-inline NpuMat::NpuMat(InputArray arr, AscendStream& stream, NpuMat::Allocator* allocator_)
+inline AscendMat::AscendMat(InputArray arr, AscendStream& stream, AscendMat::Allocator* allocator_)
     : flags(0), rows(0), cols(0), step(0), datastart(0), dataend(0),
       allocator(allocator_)
 {
     upload(arr, stream);
 }
 
-inline NpuMat::NpuMat(const NpuMat& m)
+inline AscendMat::AscendMat(const AscendMat& m)
     : flags(m.flags), rows(m.rows), cols(m.cols), step(m.step), data(m.data),
       datastart(m.datastart), dataend(m.dataend), allocator(m.allocator)
 {}
 
-inline NpuMat& NpuMat::operator=(const NpuMat& m)
+inline AscendMat& AscendMat::operator=(const AscendMat& m)
 {
     if (this != &m)
     {
-        NpuMat temp(m);
+        AscendMat temp(m);
         swap(temp);
     }
 
     return *this;
 }
 
-inline void NpuMat::swap(NpuMat& b)
+inline void AscendMat::swap(AscendMat& b)
 {
     std::swap(flags, b.flags);
     std::swap(rows, b.rows);
@@ -68,23 +68,23 @@ inline void NpuMat::swap(NpuMat& b)
     std::swap(allocator, b.allocator);
 }
 
-inline bool NpuMat::isContinuous() const { return (flags & Mat::CONTINUOUS_FLAG) != 0; }
+inline bool AscendMat::isContinuous() const { return (flags & Mat::CONTINUOUS_FLAG) != 0; }
 
-inline size_t NpuMat::elemSize() const { return CV_ELEM_SIZE(flags); }
+inline size_t AscendMat::elemSize() const { return CV_ELEM_SIZE(flags); }
 
-inline size_t NpuMat::elemSize1() const { return CV_ELEM_SIZE1(flags); }
+inline size_t AscendMat::elemSize1() const { return CV_ELEM_SIZE1(flags); }
 
-inline int NpuMat::type() const { return CV_MAT_TYPE(flags); }
+inline int AscendMat::type() const { return CV_MAT_TYPE(flags); }
 
-inline int NpuMat::depth() const { return CV_MAT_DEPTH(flags); }
+inline int AscendMat::depth() const { return CV_MAT_DEPTH(flags); }
 
-inline int NpuMat::channels() const { return CV_MAT_CN(flags); }
+inline int AscendMat::channels() const { return CV_MAT_CN(flags); }
 
-inline size_t NpuMat::step1() const { return step / elemSize1(); }
+inline size_t AscendMat::step1() const { return step / elemSize1(); }
 
-inline Size NpuMat::size() const { return Size(cols, rows); }
+inline Size AscendMat::size() const { return Size(cols, rows); }
 
-inline bool NpuMat::empty() const { return data == 0; }
+inline bool AscendMat::empty() const { return data == 0; }
 
 inline AscendStream::AscendStream(const Ptr<AscendStream::Impl>& impl) : impl_(impl) {}
 

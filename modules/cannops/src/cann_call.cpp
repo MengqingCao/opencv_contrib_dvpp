@@ -266,13 +266,13 @@ AscendTensor::AscendTensor(std::shared_ptr<uchar> _data, size_t _dataSize, int64
     dims.assign(_dims, _dims + _dimSize);
 }
 
-AscendTensor::AscendTensor(const NpuMat& npuMat, std::string _name, aclFormat _format)
+AscendTensor::AscendTensor(const AscendMat& ascendMat, std::string _name, aclFormat _format)
     : name(_name), format(_format)
 {
-    data = npuMat.data;
+    data = ascendMat.data;
     // Ascend can't process with gaps in matrix.
-    CV_Assert(npuMat.isContinuous());
-    dataSize = npuMat.rows * npuMat.cols * npuMat.elemSize();
+    CV_Assert(ascendMat.isContinuous());
+    dataSize = ascendMat.rows * ascendMat.cols * ascendMat.elemSize();
 
     switch (_format)
     {
@@ -282,22 +282,22 @@ AscendTensor::AscendTensor(const NpuMat& npuMat, std::string _name, aclFormat _f
             // Batch, default = 1.
             dims[0] = 1;
             // Default OpenCV image format = NHWC.
-            dims[1] = npuMat.rows;
-            dims[2] = npuMat.cols;
-            dims[3] = npuMat.channels();
+            dims[1] = ascendMat.rows;
+            dims[2] = ascendMat.cols;
+            dims[3] = ascendMat.channels();
             break;
         case ACL_FORMAT_NCHW:
             dims.resize(4);
             dims[0] = 1;
-            dims[1] = npuMat.channels();
-            dims[2] = npuMat.rows;
-            dims[3] = npuMat.cols;
+            dims[1] = ascendMat.channels();
+            dims[2] = ascendMat.rows;
+            dims[3] = ascendMat.cols;
             break;
         default:
             CV_Error(Error::StsBadArg, "Unknown/unsupported matrix format");
     }
 
-    dtype = getACLType(npuMat.depth());
+    dtype = getACLType(ascendMat.depth());
 }
 
 /**********************************Device*************************************/
@@ -451,7 +451,7 @@ void AscendStream::addTensorHolder(const std::shared_ptr<uchar>& holder)
 
 /********************************Operator caller******************************/
 std::shared_ptr<uchar> mallocAndUpload(void* data, size_t size, AscendStream& stream,
-                                       NpuMat::Allocator* allocator)
+                                       AscendMat::Allocator* allocator)
 {
     std::shared_ptr<uchar> ptr = allocator->allocate(size);
     aclrtStream rawStream = AscendStreamAccessor::getStream(stream);
@@ -508,7 +508,7 @@ void callAscendOperator(const char* op, std::vector<AscendTensor>& srcs,
     }
 }
 
-void callAscendOperator(const NpuMat& src, NpuMat& dst, const char* op, AscendStream& stream,
+void callAscendOperator(const AscendMat& src, AscendMat& dst, const char* op, AscendStream& stream,
                         std::vector<AclAttribute*>& attrs)
 {
     std::vector<AscendTensor> srcTensors, dstTensors;
@@ -517,7 +517,7 @@ void callAscendOperator(const NpuMat& src, NpuMat& dst, const char* op, AscendSt
     callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
 }
 
-void callAscendOperator(const NpuMat& src1, const NpuMat& src2, NpuMat& dst, const char* op,
+void callAscendOperator(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const char* op,
                         AscendStream& stream, std::vector<AclAttribute*>& attrs)
 {
     std::vector<AscendTensor> srcTensors, dstTensors;
@@ -527,7 +527,7 @@ void callAscendOperator(const NpuMat& src1, const NpuMat& src2, NpuMat& dst, con
     callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
 }
 
-void callAscendOperator(const NpuMat* srcs, const size_t srcCount, NpuMat& dst, const char* op,
+void callAscendOperator(const AscendMat* srcs, const size_t srcCount, AscendMat& dst, const char* op,
                         AscendStream& stream, std::vector<AclAttribute*>& attrs)
 {
     std::vector<AscendTensor> srcTensors, dstTensors;
@@ -539,7 +539,7 @@ void callAscendOperator(const NpuMat* srcs, const size_t srcCount, NpuMat& dst, 
     callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
 }
 
-void callAscendOperator(const NpuMat& src, const Scalar& sc, bool inv, NpuMat& dst, const char* op,
+void callAscendOperator(const AscendMat& src, const Scalar& sc, bool inv, AscendMat& dst, const char* op,
                         AscendStream& stream, std::vector<AclAttribute*>& attrs)
 {
     uchar rawData[32];
@@ -562,7 +562,7 @@ void callAscendOperator(const NpuMat& src, const Scalar& sc, bool inv, NpuMat& d
     callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
 }
 
-void callAscendOperator(const NpuMat& src, NpuMat* dsts, const size_t dstCount, const char* op,
+void callAscendOperator(const AscendMat& src, AscendMat* dsts, const size_t dstCount, const char* op,
                         AscendStream& stream, std::vector<AclAttribute*>& attrs)
 {
     std::vector<AscendTensor> srcTensors, dstTensors;

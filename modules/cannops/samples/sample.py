@@ -10,11 +10,11 @@ img = cv2.imread("/path/to/img")
 cv2.cann.initAcl()
 cv2.cann.setDevice(0)
 
-npuMat = cv2.cann.NpuMat()
-npuMat.upload(img)
+ascendMat = cv2.cann.AscendMat()
+ascendMat.upload(img)
 
-npuMatSum = cv2.cann.add(npuMat, npuMat)
-imgResult = npuMatSum.download()
+ascendMatSum = cv2.cann.add(ascendMat, ascendMat)
+imgResult = ascendMatSum.download()
 print(imgResult)
 
 cv2.cann.finalizeAcl()

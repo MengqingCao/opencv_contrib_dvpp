@@ -17,13 +17,13 @@ int main()
     cv::cann::initAcl();
     cv::cann::setDevice(0);
 
-    cv::cann::NpuMat npuMat;
-    npuMat.upload(img);
+    cv::cann::AscendMat ascendMat;
+    ascendMat.upload(img);
 
-    cv::cann::NpuMat npuMatSum;
-    cv::cann::add(npuMat, npuMat, npuMatSum);
+    cv::cann::AscendMat ascendMatSum;
+    cv::cann::add(ascendMat, ascendMat, ascendMatSum);
     cv::Mat imgResult;
-    npuMatSum.download(imgResult);
+    ascendMatSum.download(imgResult);
     std::cout << imgResult << std::endl;
 
     cv::cann::resetDevice();

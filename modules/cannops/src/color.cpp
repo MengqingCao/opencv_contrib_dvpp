@@ -8,7 +8,7 @@ namespace cv
 {
 namespace cann
 {
-static void matAlphaSet(NpuMat& mat, int dtype, AscendStream& stream)
+static void matAlphaSet(AscendMat& mat, int dtype, AscendStream& stream)
 {
     if (dtype < 0)
         dtype = mat.depth();
@@ -29,7 +29,7 @@ static void matAlphaSet(NpuMat& mat, int dtype, AscendStream& stream)
     }
 }
 
-inline void checkImg(const NpuMat& mat)
+inline void checkImg(const AscendMat& mat)
 {
     int depth = mat.depth();
     CV_Assert(!mat.empty());
@@ -39,11 +39,11 @@ inline void checkImg(const NpuMat& mat)
 inline void cvtBGRtoBGR(InputArray& _src, OutputArray& _dst, int dcn, bool swapBlue,
                         AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
     checkImg(src);
     CV_Assert(src.channels() == 3 || src.channels() == 4);
 
-    NpuMat matChannels[4];
+    AscendMat matChannels[4];
     split(src, matChannels, stream);
 
     if (swapBlue)
@@ -53,7 +53,7 @@ inline void cvtBGRtoBGR(InputArray& _src, OutputArray& _dst, int dcn, bool swapB
 
     if (dcn == 4 && src.channels() != 4)
     {
-        NpuMat& alpha = matChannels[3];
+        AscendMat& alpha = matChannels[3];
         alpha.create(src.rows, src.cols, CV_MAKE_TYPE(src.depth(), 1));
         matAlphaSet(alpha, -1, stream);
     }
@@ -69,13 +69,13 @@ static const float R2YF = 0.299f;
 inline void cvtBGRtoGray(InputArray& _src, OutputArray& _dst, int, bool swapBlue,
                          AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
     checkImg(src);
     CV_Assert(src.channels() == 3 || src.channels() == 4);
 
     float coeffs[] = {B2YF, G2YF, R2YF};
 
-    NpuMat formatMat;
+    AscendMat formatMat;
     if (src.depth() != CV_32F)
     {
         src.convertTo(formatMat, CV_32F);
@@ -92,13 +92,13 @@ inline void cvtBGRtoGray(InputArray& _src, OutputArray& _dst, int, bool swapBlue
     }
 
     Scalar sc = {coeffs[0], coeffs[1], coeffs[2], 0};
-    NpuMat grayRet;
+    AscendMat grayRet;
     multiply(formatMat, sc, grayRet, 1, -1, stream);
 
-    NpuMat matChannels[4];
+    AscendMat matChannels[4];
     split(grayRet, matChannels, stream);
 
-    NpuMat dst = getOutputMat(_dst, src.rows, src.cols, CV_MAKE_TYPE(src.depth(), 1), stream);
+    AscendMat dst = getOutputMat(_dst, src.rows, src.cols, CV_MAKE_TYPE(src.depth(), 1), stream);
 
     AclIntAttribute matSize("N", 3);
     std::vector<AclAttribute*> attrs{&matSize};
@@ -118,11 +118,11 @@ inline void cvtBGRtoGray(InputArray& _src, OutputArray& _dst, int, bool swapBlue
 
 inline void cvtGraytoBGR(InputArray& _src, OutputArray& _dst, int dcn, bool, AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
     checkImg(src);
     CV_Assert(src.channels() == 1);
 
-    NpuMat matChannels[4];
+    AscendMat matChannels[4];
     for (int i = 0; i < 3; i++)
     {
         matChannels[i] = src;
@@ -130,7 +130,7 @@ inline void cvtGraytoBGR(InputArray& _src, OutputArray& _dst, int dcn, bool, Asc
 
     if (dcn == 4)
     {
-        NpuMat& alpha = matChannels[3];
+        AscendMat& alpha = matChannels[3];
         alpha.create(src.rows, src.cols, CV_MAKE_TYPE(src.depth(), 1));
         matAlphaSet(alpha, -1, stream);
     }
@@ -146,11 +146,11 @@ static const float XYZ2RGB_D65[] = {3.240479, -1.53715, -0.498535, -0.969256, 1.
 
 inline void matMulRGB(InputArray& _src, OutputArray& _dst, float* matrix, AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
     checkImg(src);
     CV_Assert(src.channels() == 3);
 
-    NpuMat formatMat;
+    AscendMat formatMat;
     if (src.depth() != CV_32F)
     {
         src.convertTo(formatMat, CV_32F);
@@ -162,27 +162,27 @@ inline void matMulRGB(InputArray& _src, OutputArray& _dst, float* matrix, Ascend
 
     // TODO async!!!
     Mat transMat(1, 3, CV_32FC3, matrix);
-    NpuMat transNpuMat;
-    transNpuMat.upload(transMat, stream);
+    AscendMat transAscendMat;
+    transAscendMat.upload(transMat, stream);
 
     AclBoolAttribute transposeX1("adj_x1", false);
     AclBoolAttribute transposeX2("adj_x2", true);
     std::vector<AclAttribute*> matMulAttr{&transposeX1, &transposeX2};
 
-    NpuMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
+    AscendMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
 
     if (src.depth() != CV_32F)
     {
-        NpuMat formatRet(formatMat.size(), formatMat.type()),
+        AscendMat formatRet(formatMat.size(), formatMat.type()),
             thresholdRet(formatMat.size(), formatMat.type());
-        callAscendOperator(formatMat, transNpuMat, formatRet, "BatchMatMulV2", stream, matMulAttr);
+        callAscendOperator(formatMat, transAscendMat, formatRet, "BatchMatMulV2", stream, matMulAttr);
         uint16_t thresh = (src.depth() == CV_8U ? (1 << 8) : (1 << 16)) - 1;
         threshold(formatRet, thresholdRet, thresh, 0, 2 /*THRESH_TRUNC*/, stream);
         threshold(thresholdRet, formatRet, 0, 0, 3 /*THRESH_TOZERO*/, stream);
         callAscendOperator(formatRet, dst, "Cast", stream);
     }
     else
-        callAscendOperator(formatMat, transNpuMat, dst, "BatchMatMulV2", stream, matMulAttr);
+        callAscendOperator(formatMat, transAscendMat, dst, "BatchMatMulV2", stream, matMulAttr);
 
     syncOutput(dst, _dst, stream);
 }
@@ -215,7 +215,7 @@ inline void cvtXYZtoBGR(InputArray& src, OutputArray& dst, int dcn, bool swapBlu
 
     if (dcn == 4)
     {
-        NpuMat RGB[4], tempMat1;
+        AscendMat RGB[4], tempMat1;
         matMulRGB(src, tempMat1, coeffs, stream);
 
         split(tempMat1, RGB, stream);
@@ -235,7 +235,7 @@ static const float B2UF = 0.492f;
 inline void cvtBGRtoYCrCb(InputArray& _src, OutputArray& _dst, float* coeffs, bool swapBlue,
                           bool yuvOrder, AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
     checkImg(src);
     CV_Assert(src.channels() == 3);
 
@@ -243,7 +243,7 @@ inline void cvtBGRtoYCrCb(InputArray& _src, OutputArray& _dst, float* coeffs, bo
     int depth = src.depth();
     float delta = (depth == CV_8U) ? 128 : ((depth == CV_16U) ? 32768 : 0.5);
 
-    NpuMat formatMat;
+    AscendMat formatMat;
     if (src.depth() != CV_32F)
     {
         src.convertTo(formatMat, CV_32F);
@@ -253,13 +253,13 @@ inline void cvtBGRtoYCrCb(InputArray& _src, OutputArray& _dst, float* coeffs, bo
         formatMat = src;
     }
 
-    NpuMat YCrCb[3], RGB[3];
+    AscendMat YCrCb[3], RGB[3];
     split(formatMat, RGB, stream);
     cvtBGRtoGray(formatMat, YCrCb[0], 1, swapBlue, stream);
     YCrCb[1].create(YCrCb[0].rows, YCrCb[0].cols, YCrCb[0].type());
     YCrCb[2].create(YCrCb[0].rows, YCrCb[0].cols, YCrCb[0].type());
 
-    NpuMat tempMat1(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1)),
+    AscendMat tempMat1(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1)),
         tempMat2(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1));
 
     callAscendOperator(RGB[buleIdx ^ 2], YCrCb[0], tempMat1, "Sub", stream);
@@ -277,13 +277,13 @@ inline void cvtBGRtoYCrCb(InputArray& _src, OutputArray& _dst, float* coeffs, bo
 
     if (src.depth() != CV_32F)
     {
-        NpuMat formatRet(formatMat.size(), formatMat.type()),
+        AscendMat formatRet(formatMat.size(), formatMat.type()),
             thresholdRet(formatMat.size(), formatMat.type());
         merge(YCrCb, 3, formatRet, stream);
         uint16_t thresh = (src.depth() == CV_8U ? (1 << 8) : (1 << 16)) - 1;
         threshold(formatRet, thresholdRet, thresh, 0, 2 /*THRESH_TRUNC*/, stream);
         threshold(thresholdRet, formatRet, 0, 0, 3 /*THRESH_TOZERO*/, stream);
-        NpuMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
+        AscendMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
         callAscendOperator(formatRet, dst, "Cast", stream);
         syncOutput(dst, _dst, stream);
     }
@@ -304,7 +304,7 @@ static const float U2BF = 2.032f;
 inline void cvtYCrCbtoBGR(InputArray& _src, OutputArray& _dst, int dcn, float* coeffs,
                           bool swapBlue, bool yuvOrder, AscendStream& stream)
 {
-    NpuMat src = getInputMat(_src, stream);
+    AscendMat src = getInputMat(_src, stream);
     checkImg(src);
     CV_Assert(src.channels() == 3);
 
@@ -312,7 +312,7 @@ inline void cvtYCrCbtoBGR(InputArray& _src, OutputArray& _dst, int dcn, float* c
     int depth = src.depth();
     float delta = (depth == CV_8U) ? 128 : ((depth == CV_16U) ? 32768 : 0.5);
 
-    NpuMat formatMat;
+    AscendMat formatMat;
     if (src.depth() != CV_32F)
     {
         src.convertTo(formatMat, CV_32F);
@@ -322,7 +322,7 @@ inline void cvtYCrCbtoBGR(InputArray& _src, OutputArray& _dst, int dcn, float* c
         formatMat = src;
     }
 
-    NpuMat YCrCb[3], RGB[4];
+    AscendMat YCrCb[3], RGB[4];
     split(formatMat, YCrCb, stream);
     if (yuvOrder)
     {
@@ -331,7 +331,7 @@ inline void cvtYCrCbtoBGR(InputArray& _src, OutputArray& _dst, int dcn, float* c
     RGB[0].create(formatMat.rows, formatMat.cols, CV_MAKE_TYPE(formatMat.depth(), 1));
     RGB[1].create(formatMat.rows, formatMat.cols, CV_MAKE_TYPE(formatMat.depth(), 1));
     RGB[2].create(formatMat.rows, formatMat.cols, CV_MAKE_TYPE(formatMat.depth(), 1));
-    NpuMat tempMat1(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1)),
+    AscendMat tempMat1(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1)),
         tempMat2(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1)),
         CbSubDelta(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1)),
         CrSubDelta(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1));
@@ -358,13 +358,13 @@ inline void cvtYCrCbtoBGR(InputArray& _src, OutputArray& _dst, int dcn, float* c
 
     if (src.depth() != CV_32F)
     {
-        NpuMat formatRet(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), dcn)),
+        AscendMat formatRet(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), dcn)),
             thresholdRet(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), dcn));
         merge(RGB, dcn, formatRet, stream);
         uint16_t thresh = (src.depth() == CV_8U ? (1 << 8) : (1 << 16)) - 1;
         threshold(formatRet, thresholdRet, thresh, 0, 2 /*THRESH_TRUNC*/, stream);
         threshold(thresholdRet, formatRet, 0, 0, 3 /*THRESH_TOZERO*/, stream);
-        NpuMat dst = getOutputMat(_dst, src.rows, src.cols, CV_MAKE_TYPE(src.depth(), dcn), stream);
+        AscendMat dst = getOutputMat(_dst, src.rows, src.cols, CV_MAKE_TYPE(src.depth(), dcn), stream);
         callAscendOperator(formatRet, dst, "Cast", stream);
         syncOutput(dst, _dst, stream);
     }

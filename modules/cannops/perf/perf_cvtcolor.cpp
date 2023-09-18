@@ -17,7 +17,7 @@ namespace
            COLOR_YCrCb2BGR, COLOR_YCrCb2RGB, COLOR_BGR2YUV, COLOR_RGB2YUV, COLOR_YUV2BGR,    \
            COLOR_YUV2RGB)
 #define CVT_COLORS_1 Values(COLOR_GRAY2BGR, COLOR_GRAY2BGRA)
-#define TYPICAL_NPU_MAT_SIZES \
+#define TYPICAL_ASCEND_MAT_SIZES \
     Values(::perf::sz1080p, ::perf::sz2K, ::perf::sz2160p, ::perf::sz4320p)
 #define DEF_PARAM_TEST(name, ...) \
     typedef ::perf::TestBaseWithParam<testing::tuple<__VA_ARGS__>> name
@@ -25,7 +25,7 @@ namespace
 DEF_PARAM_TEST(NPU, Size, ColorConversionCodes);
 DEF_PARAM_TEST(CPU, Size, ColorConversionCodes);
 
-PERF_TEST_P(NPU, CVT_COLOR_3, testing::Combine(TYPICAL_NPU_MAT_SIZES, CVT_COLORS_3))
+PERF_TEST_P(NPU, CVT_COLOR_3, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_3))
 {
     Mat mat(GET_PARAM(0), CV_32FC3);
     Mat dst;
@@ -36,7 +36,7 @@ PERF_TEST_P(NPU, CVT_COLOR_3, testing::Combine(TYPICAL_NPU_MAT_SIZES, CVT_COLORS
     SANITY_CHECK_NOTHING();
 }
 
-PERF_TEST_P(CPU, CVT_COLOR_3, testing::Combine(TYPICAL_NPU_MAT_SIZES, CVT_COLORS_3))
+PERF_TEST_P(CPU, CVT_COLOR_3, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_3))
 {
     Mat mat(GET_PARAM(0), CV_32FC3);
     Mat dst;
@@ -45,7 +45,7 @@ PERF_TEST_P(CPU, CVT_COLOR_3, testing::Combine(TYPICAL_NPU_MAT_SIZES, CVT_COLORS
     SANITY_CHECK_NOTHING();
 }
 
-PERF_TEST_P(NPU, CVT_COLOR_1, testing::Combine(TYPICAL_NPU_MAT_SIZES, CVT_COLORS_1))
+PERF_TEST_P(NPU, CVT_COLOR_1, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_1))
 {
     Mat mat(GET_PARAM(0), CV_32FC1);
     Mat dst;
@@ -56,7 +56,7 @@ PERF_TEST_P(NPU, CVT_COLOR_1, testing::Combine(TYPICAL_NPU_MAT_SIZES, CVT_COLORS
     SANITY_CHECK_NOTHING();
 }
 
-PERF_TEST_P(CPU, CVT_COLOR_1, testing::Combine(TYPICAL_NPU_MAT_SIZES, CVT_COLORS_1))
+PERF_TEST_P(CPU, CVT_COLOR_1, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_1))
 {
     Mat mat(GET_PARAM(0), CV_32FC1);
     Mat dst;

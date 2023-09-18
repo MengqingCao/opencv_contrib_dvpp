@@ -91,7 +91,7 @@ struct AscendTensor
                  aclDataType _dtype, std::string _name = "", aclFormat _format = ACL_FORMAT_ND)
         : name(_name), data(_data), dataSize(_dataSize), dims(_dims), dtype(_dtype),
           format(_format){};
-    AscendTensor(const NpuMat& npuMat, std::string _name = "", aclFormat format = ACL_FORMAT_ND);
+    AscendTensor(const AscendMat& ascendMat, std::string _name = "", aclFormat format = ACL_FORMAT_ND);
 };
 void aclrtMallocWarpper(void** data, size_t size);
 void aclrtFreeWarpper(void* data);
@@ -116,18 +116,18 @@ static std::vector<AclAttribute*> emptyattr;
 void callAscendOperator(const char* op, std::vector<AscendTensor>& srcs,
                         std::vector<AscendTensor>& dsts, AscendStream& stream,
                         std::vector<AclAttribute*>& attrs = emptyattr);
-void callAscendOperator(const NpuMat& src, NpuMat& dst, const char* op, AscendStream& stream,
+void callAscendOperator(const AscendMat& src, AscendMat& dst, const char* op, AscendStream& stream,
                         std::vector<AclAttribute*>& attrs = emptyattr);
-void callAscendOperator(const NpuMat& src1, const NpuMat& src2, NpuMat& dst, const char* op,
+void callAscendOperator(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const char* op,
                         AscendStream& stream, std::vector<AclAttribute*>& attrs = emptyattr);
-void callAscendOperator(const NpuMat* srcs, size_t srcCount, NpuMat& dst, const char* op,
+void callAscendOperator(const AscendMat* srcs, size_t srcCount, AscendMat& dst, const char* op,
                         AscendStream& stream, std::vector<AclAttribute*>& attrs = emptyattr);
-void callAscendOperator(const NpuMat& src, const Scalar& sc, bool inv, NpuMat& dst, const char* op,
+void callAscendOperator(const AscendMat& src, const Scalar& sc, bool inv, AscendMat& dst, const char* op,
                         AscendStream& stream, std::vector<AclAttribute*>& attrs = emptyattr);
-void callAscendOperator(const NpuMat& src, NpuMat* dsts, const size_t dstCount, const char* op,
+void callAscendOperator(const AscendMat& src, AscendMat* dsts, const size_t dstCount, const char* op,
                         AscendStream& stream, std::vector<AclAttribute*>& attrs = emptyattr);
 std::shared_ptr<uchar> mallocAndUpload(void* data, size_t size, AscendStream& stream,
-                                       NpuMat::Allocator* allocator = NpuMat::defaultAllocator());
+                                       AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
 } // namespace cann
 } // namespace cv
 
