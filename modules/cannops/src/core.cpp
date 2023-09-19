@@ -27,14 +27,13 @@ static inline aclFormat getAclFormat(const char* type)
 void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
                AscendStream& stream)
 {
-    AclStringAttribute fromAttr("src_format", from);
-    AclStringAttribute toAttr("dst_format", to);
-    std::vector<AclAttribute*> attrs{&fromAttr, &toAttr};
-
-    std::vector<AscendTensor> srcTensors, dstTensors;
-    srcTensors.emplace_back(src, "", getAclFormat(from));
-    dstTensors.emplace_back(dst, "", getAclFormat(to));
-    callAscendOperator("TransData", srcTensors, dstTensors, stream, attrs);
+    OperatorRunner runner;
+    runner.setOp("TransData")
+        .addInput(src, "")
+        .addOutput(dst, "")
+        .addAttr(from, "src_format")
+        .addAttr(to, "dst_format")
+        .run(stream);
 }
 
 void merge(const AscendMat* src, size_t n, AscendMat& dst, AscendStream& stream)
@@ -53,18 +52,15 @@ void merge(const AscendMat* src, size_t n, AscendMat& dst, AscendStream& stream)
         CV_Assert(src[i].rows == rows && src[i].cols == cols);
     }
 
-    AclIntAttribute concatDim("concat_dim", 3);
-    std::vector<AclAttribute*> attrs{&concatDim};
-
-    std::vector<AscendTensor> srcTensors, dstTensors;
+    OperatorRunner runner;
+    runner.setOp("ConcatD");
 
     for (size_t i = 0; i < n; i++)
     {
-        srcTensors.emplace_back(src[i], "x" + std::to_string(i));
+        runner.addInput(src[i], ("x" + std::to_string(i)).c_str());
     }
-    dstTensors.emplace_back(dst);
 
-    callAscendOperator("ConcatD", srcTensors, dstTensors, stream, attrs);
+    runner.addOutput(dst, "").addAttr(3, "concat_dim").run(stream);
 }
 
 void merge(const AscendMat* src, size_t n, OutputArray _dst, AscendStream& stream)
@@ -85,15 +81,15 @@ void split(const AscendMat& src, AscendMat* dst, AscendStream& stream)
         return;
 
     int cn = src.channels();
-    AclIntAttribute splitDim("split_dim", 3);
-    AclIntAttribute numSplit("num_split", cn);
 
+    OperatorRunner runner;
+    runner.setOp("SplitD").addInput(src, "");
     for (int i = 0; i < cn; i++)
+    {
         dst[i].create(src.rows, src.cols, CV_MAKE_TYPE(src.depth(), 1));
-
-    std::vector<AclAttribute*> attrs{&splitDim, &numSplit};
-
-    callAscendOperator(src, dst, cn, "SplitD", stream, attrs);
+        runner.addOutput(dst[i], "");
+    }
+    runner.addAttr(3, "split_dim").addAttr(cn, "num_split").run(stream);
 }
 
 void split(InputArray _src, AscendMat* dst, AscendStream& stream)
@@ -111,13 +107,12 @@ void split(InputArray _src, std::vector<AscendMat>& dst, AscendStream& stream)
 
 void transpose(const AscendMat& src, int64_t* perm, AscendMat& dst, AscendStream& stream)
 {
-    AclListIntAttribute permAttr("perm", 4, perm);
-    std::vector<AclAttribute*> attrs{&permAttr};
-
-    std::vector<AscendTensor> srcTensors, dstTensors;
-    srcTensors.emplace_back(src);
-    dstTensors.emplace_back(dst);
-    callAscendOperator("TransposeD", srcTensors, dstTensors, stream, attrs);
+    OperatorRunner runner;
+    runner.setOp("TransposeD")
+        .addInput(src, "")
+        .addOutput(dst, "")
+        .addAttr(perm, 4, "perm")
+        .run(stream);
 }
 
 void transpose(InputArray _src, OutputArray _dst, AscendStream& stream)
@@ -133,17 +128,12 @@ void transpose(InputArray _src, OutputArray _dst, AscendStream& stream)
 
 void flip(const AscendMat& src, std::vector<int32_t>& asixs, AscendMat& dst, AscendStream& stream)
 {
-    size_t dataSize = asixs.size() * sizeof(int32_t);
-    std::shared_ptr<uchar> axisPtr = mallocAndUpload(&asixs.at(0), dataSize, stream);
-
-    int64_t dims[] = {(int64_t)asixs.size()};
-    AscendTensor asixTensor(axisPtr, dataSize, dims, 1, ACL_INT32);
-
-    std::vector<AscendTensor> srcTensors, dstTensors;
-    srcTensors.emplace_back(src);
-    srcTensors.push_back(std::move(asixTensor));
-    dstTensors.emplace_back(dst);
-    callAscendOperator("ReverseV2", srcTensors, dstTensors, stream, emptyattr);
+    OperatorRunner runner;
+    runner.setOp("ReverseV2")
+        .addInput(src, "")
+        .addInput<int32_t>(&asixs.at(0), asixs.size(), ACL_INT32, stream, "")
+        .addOutput(dst, "")
+        .run(stream);
 }
 
 void flip(InputArray _src, OutputArray _dst, int flipCode, AscendStream& stream)

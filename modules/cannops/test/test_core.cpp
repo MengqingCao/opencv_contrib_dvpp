@@ -9,7 +9,7 @@ namespace opencv_test
 {
 namespace
 {
-TEST(IMGPROC, MERGE)
+TEST(CORE, MERGE)
 {
     Mat m1 = (Mat_<uchar>(2, 2) << 1, 4, 7, 10);
     Mat m2 = (Mat_<uchar>(2, 2) << 2, 5, 8, 11);
@@ -40,7 +40,7 @@ TEST(IMGPROC, MERGE)
     cv::cann::resetDevice();
 }
 
-TEST(IMGPROC, SPLIT)
+TEST(CORE, SPLIT)
 {
     char d[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     Mat m(2, 2, CV_8UC3, d);
@@ -75,7 +75,7 @@ TEST(IMGPROC, SPLIT)
     cv::cann::resetDevice();
 }
 
-TEST(IMGPROC, TRANSPOSE)
+TEST(CORE, TRANSPOSE)
 {
     Mat cpuMat = randomMat(10, 10, CV_32SC3), cpuRetMat, checker;
     cv::transpose(cpuMat, cpuRetMat);
@@ -84,7 +84,7 @@ TEST(IMGPROC, TRANSPOSE)
     EXPECT_MAT_NEAR(cpuRetMat, checker, 0.0);
 }
 
-TEST(IMGPROC, FLIP)
+TEST(CORE, FLIP)
 {
     Mat cpuMat = randomMat(10, 10, CV_32SC3), cpuRetMat, checker;
 
@@ -101,7 +101,7 @@ TEST(IMGPROC, FLIP)
     EXPECT_MAT_NEAR(cpuRetMat, checker, 0.0);
 }
 
-TEST(IMGPROC, ROTATE)
+TEST(CORE, ROTATE)
 {
     Mat cpuRetMat, checker, cpuMat = randomMat(3, 5, CV_16S, 0.0, 255.0);
 

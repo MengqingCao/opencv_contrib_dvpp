@@ -37,28 +37,6 @@ static inline void checkAclPtr(void* ptr, const char* file, const int line, cons
         ptr;                                           \
     })
 
-/*****************************Acl Operator Attribute**************************/
-#define DEFINE_ATTR_BODY(FUNC)                                     \
-    void Acl##FUNC##Attribute::addAttr(aclopAttr* opAttr)          \
-    {                                                              \
-        CV_ACL_SAFE_CALL(aclopSetAttr##FUNC(opAttr, name, value)); \
-    }
-
-#define DEFINE_ATTR_LIST_BODY(FUNC)                                         \
-    void AclList##FUNC##Attribute::addAttr(aclopAttr* opAttr)               \
-    {                                                                       \
-        CV_ACL_SAFE_CALL(aclopSetAttrList##FUNC(opAttr, name, num, value)); \
-    }
-
-DEFINE_ATTR_BODY(Float);
-DEFINE_ATTR_BODY(String);
-DEFINE_ATTR_BODY(Int);
-DEFINE_ATTR_BODY(Bool);
-DEFINE_ATTR_LIST_BODY(Int);
-
-#undef DEFINE_ATTR_BODY
-#undef DEFINE_ATTR_LIST_BODY
-
 /******************************Acl Runtime Warpper****************************/
 void aclrtMallocWarpper(void** data, size_t size)
 {
@@ -163,76 +141,6 @@ void aclrtMemsetWarpper(std::shared_ptr<uchar>& ptr, int32_t value, size_t count
     }
 }
 
-/**************************Acl attribute preparation**************************/
-struct CannPreparation
-{
-    CannPreparation() { opAttr_ = CV_ACL_SAFE_CALL_PTR(aclopCreateAttr()); }
-
-    virtual ~CannPreparation()
-    {
-        for (auto desc : inputDesc_)
-        {
-            aclDestroyTensorDesc(desc);
-        }
-        for (auto desc : outputDesc_)
-        {
-            aclDestroyTensorDesc(desc);
-        }
-        for (auto buf : inputBuffers_)
-        {
-            aclDestroyDataBuffer(buf);
-        }
-        for (auto buf : outputBuffers_)
-        {
-            aclDestroyDataBuffer(buf);
-        }
-        aclopDestroyAttr(opAttr_);
-    }
-
-    std::vector<aclDataBuffer*> inputBuffers_;
-    std::vector<aclDataBuffer*> outputBuffers_;
-    std::vector<aclTensorDesc*> inputDesc_;
-    std::vector<aclTensorDesc*> outputDesc_;
-    aclopAttr* opAttr_;
-};
-
-#define CANN_PREPARE_INPUTDESC(var, name, ...)                               \
-    do                                                                       \
-    {                                                                        \
-        auto _rPtr = CV_ACL_SAFE_CALL_PTR(aclCreateTensorDesc(__VA_ARGS__)); \
-        if (_rPtr != nullptr)                                                \
-        {                                                                    \
-            if (name != nullptr and strlen(name) != 0)                       \
-                aclSetTensorDescName(_rPtr, name);                           \
-            var.inputDesc_.push_back(_rPtr);                                 \
-        }                                                                    \
-    } while (0)
-
-#define CANN_PREPARE_OUTPUTDESC(var, ...)                                    \
-    do                                                                       \
-    {                                                                        \
-        auto _rPtr = CV_ACL_SAFE_CALL_PTR(aclCreateTensorDesc(__VA_ARGS__)); \
-        if (_rPtr != nullptr)                                                \
-            var.outputDesc_.push_back(_rPtr);                                \
-    } while (0)
-
-#define CANN_PREPARE_INPUTBUFFER(var, ...)                                   \
-    do                                                                       \
-    {                                                                        \
-        auto _rPtr = CV_ACL_SAFE_CALL_PTR(aclCreateDataBuffer(__VA_ARGS__)); \
-        if (_rPtr != nullptr)                                                \
-            var.inputBuffers_.push_back(_rPtr);                              \
-    } while (0)
-
-#define CANN_PREPARE_OUTPUTBUFFER(var, ...)                                  \
-    do                                                                       \
-    {                                                                        \
-        auto _rPtr = CV_ACL_SAFE_CALL_PTR(aclCreateDataBuffer(__VA_ARGS__)); \
-        if (_rPtr != nullptr)                                                \
-            var.outputBuffers_.push_back(_rPtr);                             \
-    } while (0)
-
-/********************************Ascend Tensor********************************/
 static inline aclDataType getACLType(int opencvdepth)
 {
     switch (opencvdepth)
@@ -258,15 +166,178 @@ static inline aclDataType getACLType(int opencvdepth)
     }
 }
 
+std::shared_ptr<uchar> mallocAndUpload(const void* data, size_t size, AscendStream& stream,
+                                              AscendMat::Allocator* allocator)
+{
+    std::shared_ptr<uchar> ptr = allocator->allocate(size);
+    aclrtStream rawStream = AscendStreamAccessor::getStream(stream);
+
+    if (rawStream == nullptr)
+        CV_ACL_SAFE_CALL(aclrtMemcpy(ptr.get(), size, data, size, ACL_MEMCPY_HOST_TO_DEVICE));
+    else
+        CV_ACL_SAFE_CALL(
+            aclrtMemcpyAsync(ptr.get(), size, data, size, ACL_MEMCPY_HOST_TO_DEVICE, rawStream));
+    return ptr;
+}
+
+/**************************Acl attribute preparation**************************/
+
+OperatorRunner& OperatorRunner::reset()
+{
+    holder.clear();
+    op.clear();
+    for (auto desc : inputDesc_)
+    {
+        aclDestroyTensorDesc(desc);
+    }
+    for (auto desc : outputDesc_)
+    {
+        aclDestroyTensorDesc(desc);
+    }
+    for (auto buf : inputBuffers_)
+    {
+        CV_ACL_SAFE_CALL(aclDestroyDataBuffer(buf));
+    }
+    for (auto buf : outputBuffers_)
+    {
+        CV_ACL_SAFE_CALL(aclDestroyDataBuffer(buf));
+    }
+    if(opAttrInit)
+        aclopDestroyAttr(opAttr_);
+    inputDesc_.clear();
+    outputDesc_.clear();
+    inputBuffers_.clear();
+    outputBuffers_.clear();
+    opAttrInit = false;
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::setOp(const char* opName)
+{
+    reset();
+    opAttr_ = CV_ACL_SAFE_CALL_PTR(aclopCreateAttr());
+    opAttrInit = true;
+    op = std::string(opName);
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::addAttr(float value, const char* name)
+{
+    CV_ACL_SAFE_CALL(aclopSetAttrFloat(opAttr_, name, value));
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::addAttr(const char* value, const char* name)
+{
+    CV_ACL_SAFE_CALL(aclopSetAttrString(opAttr_, name, value));
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::addAttr(int value, const char* name)
+{
+    CV_ACL_SAFE_CALL(aclopSetAttrInt(opAttr_, name, value));
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::addAttr(bool value, const char* name)
+{
+    CV_ACL_SAFE_CALL(aclopSetAttrBool(opAttr_, name, value));
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::addAttr(const int64_t* value, int size, const char* name)
+{
+    CV_ACL_SAFE_CALL(aclopSetAttrListInt(opAttr_, name, size, value));
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::addInput(AscendTensor& tensor)
+{
+    auto descPtr = CV_ACL_SAFE_CALL_PTR(
+        aclCreateTensorDesc(tensor.dtype, tensor.dims.size(), &tensor.dims[0], tensor.format));
+    if (descPtr != nullptr)
+    {
+        if (tensor.name != nullptr && strlen(tensor.name) != 0)
+            aclSetTensorDescName(descPtr, tensor.name);
+        inputDesc_.push_back(descPtr);
+    }
+    auto bufPtr = CV_ACL_SAFE_CALL_PTR(aclCreateDataBuffer(tensor.data.get(), tensor.dataSize));
+    if (bufPtr != nullptr)
+        inputBuffers_.push_back(bufPtr);
+    holder.insert(tensor.data);
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::addOutput(AscendTensor& tensor)
+{
+    auto descPtr = CV_ACL_SAFE_CALL_PTR(
+        aclCreateTensorDesc(tensor.dtype, tensor.dims.size(), &tensor.dims[0], tensor.format));
+    if (descPtr != nullptr)
+    {
+        if (tensor.name != nullptr && strlen(tensor.name) != 0)
+            aclSetTensorDescName(descPtr, tensor.name);
+        outputDesc_.push_back(descPtr);
+    }
+    auto bufPtr = CV_ACL_SAFE_CALL_PTR(aclCreateDataBuffer(tensor.data.get(), tensor.dataSize));
+    if (bufPtr != nullptr)
+        outputBuffers_.push_back(bufPtr);
+    holder.insert(tensor.data);
+    return *this;
+}
+
+OperatorRunner& OperatorRunner::addInput(const AscendMat& mat, const char* name)
+{
+    AscendTensor tensor(mat, name);
+    return addInput(tensor);
+}
+
+OperatorRunner& OperatorRunner::addOutput(AscendMat& mat, const char* name)
+{
+    AscendTensor tensor(mat, name);
+    return addOutput(tensor);
+}
+
+OperatorRunner& OperatorRunner::addInput(const Scalar& sc, int type, const char* name)
+{
+    uchar rawData[32];
+    cv::scalarToRawData(sc, rawData, type, 0);
+    std::shared_ptr<uchar> scPtr =
+        mallocAndUpload(rawData, (CV_ELEM_SIZE(type)), AscendStream::Null(), AscendMat::defaultAllocator());
+
+    int64_t dims[] = {1, 1, 1, (CV_MAT_CN(type))};
+    AscendTensor tensor(scPtr, (CV_ELEM_SIZE(type)), dims, sizeof(dims) / sizeof(dims[0]),
+                              getACLType(CV_MAT_DEPTH(type)), name);
+    return addInput(tensor);
+}
+
+OperatorRunner& OperatorRunner::run(AscendStream& stream)
+{
+    aclrtStream rawStream = AscendStreamAccessor::getStream(stream);
+    CV_ACL_SAFE_CALL(aclopCompileAndExecute(op.c_str(), inputDesc_.size(), inputDesc_.data(),
+                                            inputBuffers_.data(), outputDesc_.size(),
+                                            outputDesc_.data(), outputBuffers_.data(), opAttr_,
+                                            ACL_ENGINE_SYS, ACL_COMPILE_SYS, NULL, rawStream));
+    if (rawStream == nullptr)
+        CV_ACL_SAFE_CALL(aclrtSynchronizeStream(rawStream));
+    else
+    {
+        for (const auto& ptr : holder)
+            stream.addTensorHolder(ptr);
+    }
+    return *this;
+}
+
+/********************************Ascend Tensor********************************/
+
 AscendTensor::AscendTensor(std::shared_ptr<uchar> _data, size_t _dataSize, int64_t* _dims,
-                           size_t _dimSize, aclDataType _dtype, std::string _name,
+                           size_t _dimSize, aclDataType _dtype, const char* _name,
                            aclFormat _format)
     : name(_name), data(_data), dataSize(_dataSize), dtype(_dtype), format(_format)
 {
     dims.assign(_dims, _dims + _dimSize);
 }
 
-AscendTensor::AscendTensor(const AscendMat& ascendMat, std::string _name, aclFormat _format)
+AscendTensor::AscendTensor(const AscendMat& ascendMat, const char* _name, aclFormat _format)
     : name(_name), format(_format)
 {
     data = ascendMat.data;
@@ -447,131 +518,6 @@ AscendStream& AscendStream::Null()
 void AscendStream::addTensorHolder(const std::shared_ptr<uchar>& holder)
 {
     impl_->AddTensorHolder(holder);
-}
-
-/********************************Operator caller******************************/
-std::shared_ptr<uchar> mallocAndUpload(void* data, size_t size, AscendStream& stream,
-                                       AscendMat::Allocator* allocator)
-{
-    std::shared_ptr<uchar> ptr = allocator->allocate(size);
-    aclrtStream rawStream = AscendStreamAccessor::getStream(stream);
-
-    if (rawStream == nullptr)
-        CV_ACL_SAFE_CALL(aclrtMemcpy(ptr.get(), size, data, size, ACL_MEMCPY_HOST_TO_DEVICE));
-    else
-        CV_ACL_SAFE_CALL(
-            aclrtMemcpyAsync(ptr.get(), size, data, size, ACL_MEMCPY_HOST_TO_DEVICE, rawStream));
-    return ptr;
-}
-
-void callAscendOperator(const char* op, std::vector<AscendTensor>& srcs,
-                        std::vector<AscendTensor>& dsts, AscendStream& stream,
-                        std::vector<AclAttribute*>& attrs)
-{
-    CannPreparation prepare;
-    for (AclAttribute* attr : attrs)
-    {
-        attr->addAttr(prepare.opAttr_);
-    }
-
-    for (const AscendTensor& src : srcs)
-    {
-        CANN_PREPARE_INPUTDESC(prepare, src.name.c_str(), src.dtype, src.dims.size(),
-                               &src.dims.at(0), src.format);
-        CANN_PREPARE_INPUTBUFFER(prepare, src.data.get(), src.dataSize);
-    }
-
-    for (const AscendTensor& dst : dsts)
-    {
-        CANN_PREPARE_OUTPUTDESC(prepare, dst.dtype, dst.dims.size(), &dst.dims.at(0), dst.format);
-        CANN_PREPARE_OUTPUTBUFFER(prepare, dst.data.get(), dst.dataSize);
-    }
-
-    aclrtStream rawStream = AscendStreamAccessor::getStream(stream);
-
-    CV_ACL_SAFE_CALL(aclopCompileAndExecute(
-        op, prepare.inputDesc_.size(), prepare.inputDesc_.data(), prepare.inputBuffers_.data(),
-        prepare.outputDesc_.size(), prepare.outputDesc_.data(), prepare.outputBuffers_.data(),
-        prepare.opAttr_, ACL_ENGINE_SYS, ACL_COMPILE_SYS, NULL, rawStream));
-    if (rawStream == nullptr)
-        CV_ACL_SAFE_CALL(aclrtSynchronizeStream(rawStream));
-    else
-    {
-        for (const AscendTensor& src : srcs)
-        {
-            stream.addTensorHolder(src.data);
-        }
-        for (const AscendTensor& dst : dsts)
-        {
-            stream.addTensorHolder(dst.data);
-        }
-    }
-}
-
-void callAscendOperator(const AscendMat& src, AscendMat& dst, const char* op, AscendStream& stream,
-                        std::vector<AclAttribute*>& attrs)
-{
-    std::vector<AscendTensor> srcTensors, dstTensors;
-    srcTensors.emplace_back(src);
-    dstTensors.emplace_back(dst);
-    callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
-}
-
-void callAscendOperator(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const char* op,
-                        AscendStream& stream, std::vector<AclAttribute*>& attrs)
-{
-    std::vector<AscendTensor> srcTensors, dstTensors;
-    srcTensors.emplace_back(src1);
-    srcTensors.emplace_back(src2);
-    dstTensors.emplace_back(dst);
-    callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
-}
-
-void callAscendOperator(const AscendMat* srcs, const size_t srcCount, AscendMat& dst, const char* op,
-                        AscendStream& stream, std::vector<AclAttribute*>& attrs)
-{
-    std::vector<AscendTensor> srcTensors, dstTensors;
-    for (size_t i = 0; i < srcCount; i++)
-    {
-        srcTensors.emplace_back(srcs[i]);
-    }
-    dstTensors.emplace_back(dst);
-    callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
-}
-
-void callAscendOperator(const AscendMat& src, const Scalar& sc, bool inv, AscendMat& dst, const char* op,
-                        AscendStream& stream, std::vector<AclAttribute*>& attrs)
-{
-    uchar rawData[32];
-    cv::scalarToRawData(sc, rawData, src.type(), 0);
-    std::shared_ptr<uchar> scPtr = mallocAndUpload(rawData, src.elemSize(), stream);
-
-    int64_t dims[] = {1, 1, 1, src.channels()};
-    AscendTensor scalarTensor(scPtr, src.elemSize(), dims, sizeof(dims) / sizeof(dims[0]),
-                              getACLType(src.depth()));
-
-    std::vector<AscendTensor> srcTensors, dstTensors;
-
-    srcTensors.emplace_back(src);
-    srcTensors.push_back(scalarTensor);
-
-    if (inv)
-        std::swap(srcTensors[0], srcTensors[1]);
-
-    dstTensors.emplace_back(dst);
-    callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
-}
-
-void callAscendOperator(const AscendMat& src, AscendMat* dsts, const size_t dstCount, const char* op,
-                        AscendStream& stream, std::vector<AclAttribute*>& attrs)
-{
-    std::vector<AscendTensor> srcTensors, dstTensors;
-    srcTensors.emplace_back(src);
-    for (size_t i = 0; i < dstCount; i++)
-    {
-        dstTensors.emplace_back(dsts[i]);
-    }
-    callAscendOperator(op, srcTensors, dstTensors, stream, attrs);
 }
 
 } // namespace cann

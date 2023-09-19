@@ -93,26 +93,38 @@ inline void cvtBGRtoGray(InputArray& _src, OutputArray& _dst, int, bool swapBlue
 
     Scalar sc = {coeffs[0], coeffs[1], coeffs[2], 0};
     AscendMat grayRet;
+
+    //TODO change to runner.
     multiply(formatMat, sc, grayRet, 1, -1, stream);
 
     AscendMat matChannels[4];
     split(grayRet, matChannels, stream);
 
     AscendMat dst = getOutputMat(_dst, src.rows, src.cols, CV_MAKE_TYPE(src.depth(), 1), stream);
-
-    AclIntAttribute matSize("N", 3);
-    std::vector<AclAttribute*> attrs{&matSize};
-
+    OperatorRunner runner;
     if (src.depth() != CV_32F)
     {
         formatMat.create(grayRet.rows, grayRet.cols, CV_MAKE_TYPE(grayRet.depth(), 1));
-        callAscendOperator(matChannels, 3, formatMat, "AddN", stream, attrs);
+        runner.setOp("AddN")
+            .addInput(matChannels[0], "")
+            .addInput(matChannels[1], "")
+            .addInput(matChannels[2], "")
+            .addOutput(formatMat, "")
+            .addAttr(3, "N")
+            .run(stream);
 
-        // do not use convertTo here, dst.data will overwrited.
-        callAscendOperator(formatMat, dst, "Cast", stream);
+        runner.setOp("Cast").addInput(formatMat, "").addOutput(dst, "").run(stream);
     }
     else
-        callAscendOperator(matChannels, 3, dst, "AddN", stream, attrs);
+    {
+        runner.setOp("AddN")
+            .addInput(matChannels[0], "")
+            .addInput(matChannels[1], "")
+            .addInput(matChannels[2], "")
+            .addOutput(dst, "")
+            .addAttr(3, "N")
+            .run(stream);
+    }
     syncOutput(dst, _dst, stream);
 }
 
@@ -165,24 +177,39 @@ inline void matMulRGB(InputArray& _src, OutputArray& _dst, float* matrix, Ascend
     AscendMat transAscendMat;
     transAscendMat.upload(transMat, stream);
 
-    AclBoolAttribute transposeX1("adj_x1", false);
-    AclBoolAttribute transposeX2("adj_x2", true);
-    std::vector<AclAttribute*> matMulAttr{&transposeX1, &transposeX2};
-
     AscendMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
 
     if (src.depth() != CV_32F)
     {
         AscendMat formatRet(formatMat.size(), formatMat.type()),
             thresholdRet(formatMat.size(), formatMat.type());
-        callAscendOperator(formatMat, transAscendMat, formatRet, "BatchMatMulV2", stream, matMulAttr);
+
+        OperatorRunner matMul, caster;
+        matMul.setOp("BatchMatMulV2")
+            .addInput(formatMat, "")
+            .addInput(transAscendMat, "")
+            .addOutput(formatRet, "")
+            .addAttr(false, "adj_x1")
+            .addAttr(true, "adj_x2")
+            .run(stream);
+
         uint16_t thresh = (src.depth() == CV_8U ? (1 << 8) : (1 << 16)) - 1;
         threshold(formatRet, thresholdRet, thresh, 0, 2 /*THRESH_TRUNC*/, stream);
         threshold(thresholdRet, formatRet, 0, 0, 3 /*THRESH_TOZERO*/, stream);
-        callAscendOperator(formatRet, dst, "Cast", stream);
+
+        caster.setOp("Cast").addInput(formatRet, "").addOutput(dst, "").run(stream);
     }
     else
-        callAscendOperator(formatMat, transAscendMat, dst, "BatchMatMulV2", stream, matMulAttr);
+    {
+        OperatorRunner runner;
+        runner.setOp("BatchMatMulV2")
+            .addInput(formatMat, "")
+            .addInput(transAscendMat, "")
+            .addOutput(dst, "")
+            .addAttr(false, "adj_x1")
+            .addAttr(true, "adj_x2")
+            .run(stream);
+    }
 
     syncOutput(dst, _dst, stream);
 }
@@ -261,14 +288,38 @@ inline void cvtBGRtoYCrCb(InputArray& _src, OutputArray& _dst, float* coeffs, bo
 
     AscendMat tempMat1(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1)),
         tempMat2(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1));
+    OperatorRunner runner;
+    runner.setOp("Sub")
+        .addInput(RGB[buleIdx ^ 2], "")
+        .addInput(YCrCb[0], "")
+        .addOutput(tempMat1, "")
+        .run(stream);
+    runner.setOp("Muls")
+        .addInput(tempMat1, "")
+        .addOutput(tempMat2, "")
+        .addAttr(coeffs[0], "value")
+        .run(stream);
+    runner.setOp("Adds")
+        .addInput(tempMat2, "")
+        .addOutput(YCrCb[1], "")
+        .addAttr(delta, "value")
+        .run(stream);
 
-    callAscendOperator(RGB[buleIdx ^ 2], YCrCb[0], tempMat1, "Sub", stream);
-    muls(tempMat1, coeffs[0], tempMat2, stream);
-    adds(tempMat2, delta, YCrCb[1], stream);
-
-    callAscendOperator(RGB[buleIdx], YCrCb[0], tempMat1, "Sub", stream);
-    muls(tempMat1, coeffs[1], tempMat2, stream);
-    adds(tempMat2, delta, YCrCb[2], stream);
+    runner.setOp("Sub")
+        .addInput(RGB[buleIdx], "")
+        .addInput(YCrCb[0], "")
+        .addOutput(tempMat1, "")
+        .run(stream);
+    runner.setOp("Muls")
+        .addInput(tempMat1, "")
+        .addOutput(tempMat2, "")
+        .addAttr(coeffs[1], "value")
+        .run(stream);
+    runner.setOp("Adds")
+        .addInput(tempMat2, "")
+        .addOutput(YCrCb[2], "")
+        .addAttr(delta, "value")
+        .run(stream);
 
     if (yuvOrder)
     {
@@ -284,7 +335,7 @@ inline void cvtBGRtoYCrCb(InputArray& _src, OutputArray& _dst, float* coeffs, bo
         threshold(formatRet, thresholdRet, thresh, 0, 2 /*THRESH_TRUNC*/, stream);
         threshold(thresholdRet, formatRet, 0, 0, 3 /*THRESH_TOZERO*/, stream);
         AscendMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
-        callAscendOperator(formatRet, dst, "Cast", stream);
+        runner.setOp("Cast").addInput(formatRet, "").addOutput(dst, "").run(stream);
         syncOutput(dst, _dst, stream);
     }
     else
@@ -336,19 +387,59 @@ inline void cvtYCrCbtoBGR(InputArray& _src, OutputArray& _dst, int dcn, float* c
         CbSubDelta(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1)),
         CrSubDelta(formatMat.size(), CV_MAKE_TYPE(formatMat.depth(), 1));
 
-    adds(YCrCb[1], (0.0f - delta), CrSubDelta, stream);
-    adds(YCrCb[2], (0.0f - delta), CbSubDelta, stream);
+    OperatorRunner runner;
+    runner.setOp("Adds")
+        .addInput(YCrCb[1], "")
+        .addOutput(CrSubDelta, "")
+        .addAttr((0.0f - delta), "value")
+        .run(stream);
+    runner.setOp("Adds")
+        .addInput(YCrCb[2], "")
+        .addOutput(CbSubDelta, "")
+        .addAttr((0.0f - delta), "value")
+        .run(stream);
+    runner.setOp("Muls")
+        .addInput(CrSubDelta, "")
+        .addOutput(tempMat1, "")
+        .addAttr(coeffs[0], "value")
+        .run(stream);
+    runner.setOp("Add")
+        .addInput(YCrCb[0], "")
+        .addInput(tempMat1, "")
+        .addOutput(RGB[buleIdx ^ 2], "")
+        .run(stream);
 
-    muls(CrSubDelta, coeffs[0], tempMat1, stream);
-    callAscendOperator(YCrCb[0], tempMat1, RGB[buleIdx ^ 2], "Add", stream);
+    runner.setOp("Muls")
+        .addInput(CrSubDelta, "")
+        .addOutput(tempMat1, "")
+        .addAttr(coeffs[1], "value")
+        .run(stream);
+    runner.setOp("Add")
+        .addInput(YCrCb[0], "")
+        .addInput(tempMat1, "")
+        .addOutput(tempMat2, "")
+        .run(stream);
+    runner.setOp("Muls")
+        .addInput(CbSubDelta, "")
+        .addOutput(tempMat1, "")
+        .addAttr(coeffs[2], "value")
+        .run(stream);
+    runner.setOp("Add")
+        .addInput(tempMat2, "")
+        .addInput(tempMat1, "")
+        .addOutput(RGB[1], "")
+        .run(stream);
 
-    muls(CrSubDelta, coeffs[1], tempMat1, stream);
-    callAscendOperator(YCrCb[0], tempMat1, tempMat2, "Add", stream);
-    muls(CbSubDelta, coeffs[2], tempMat1, stream);
-    callAscendOperator(tempMat2, tempMat1, RGB[1], "Add", stream);
-
-    muls(CbSubDelta, coeffs[3], tempMat1, stream);
-    callAscendOperator(YCrCb[0], tempMat1, RGB[buleIdx], "Add", stream);
+    runner.setOp("Muls")
+        .addInput(CbSubDelta, "")
+        .addOutput(tempMat1, "")
+        .addAttr(coeffs[3], "value")
+        .run(stream);
+    runner.setOp("Add")
+        .addInput(YCrCb[0], "")
+        .addInput(tempMat1, "")
+        .addOutput(RGB[buleIdx], "")
+        .run(stream);
 
     if (dcn == 4)
     {
@@ -364,8 +455,9 @@ inline void cvtYCrCbtoBGR(InputArray& _src, OutputArray& _dst, int dcn, float* c
         uint16_t thresh = (src.depth() == CV_8U ? (1 << 8) : (1 << 16)) - 1;
         threshold(formatRet, thresholdRet, thresh, 0, 2 /*THRESH_TRUNC*/, stream);
         threshold(thresholdRet, formatRet, 0, 0, 3 /*THRESH_TOZERO*/, stream);
-        AscendMat dst = getOutputMat(_dst, src.rows, src.cols, CV_MAKE_TYPE(src.depth(), dcn), stream);
-        callAscendOperator(formatRet, dst, "Cast", stream);
+        AscendMat dst =
+            getOutputMat(_dst, src.rows, src.cols, CV_MAKE_TYPE(src.depth(), dcn), stream);
+        runner.setOp("Cast").addInput(formatRet, "").addOutput(dst, "").run(stream);
         syncOutput(dst, _dst, stream);
     }
     else

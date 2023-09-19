@@ -10,8 +10,6 @@ namespace cv
 {
 namespace cann
 {
-void adds(const AscendMat& arr, float scalar, AscendMat& dst, AscendStream& stream);
-void muls(const AscendMat& arr, float scalar, AscendMat& dst, AscendStream& stream);
 void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
                AscendStream& stream);
 void transpose(const AscendMat& src, int64_t* perm, AscendMat& dst, AscendStream& stream);
