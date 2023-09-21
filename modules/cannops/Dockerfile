@@ -24,47 +24,27 @@
 # 4. Run opencv_test_cannops.
 # ./bin/opencv_test_cannops
 
-FROM ubuntu:20.04
+FROM openeuler/openeuler:22.03-lts-sp2
 
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt install -y \
+RUN yum install -y \
     git \
     wget \
     gcc \
     g++ \
     cmake \
     make \
-    zlib1g \
-    zlib1g-dev \
-    openssl \
-    libsqlite3-dev \
-    libssl-dev \
-    libffi-dev \
-    unzip \
-    pciutils \
-    net-tools \
-    libblas-dev \
-    gfortran \
-    patchelf \
-    libblas3 && \
-    rm -rf /var/lib/apt/lists/*
+    python-pip \
+    python3-devel
 
-# Install Python 3.9
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    bash ~/miniconda.sh -b -p /root/miniconda && \
-    rm -f ~/miniconda.sh
-RUN /root/miniconda/bin/conda create --name opencv -y python=3.9
-ENV PATH=/root/miniconda/envs/opencv/bin/:$PATH
-RUN pip install numpy sympy decorator scipy attrs
+RUN which pip
+
+RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple numpy sympy decorator scipy attrs
 
 # Install CANN
-ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/common/:/usr/local/Ascend/driver/lib64/driver/:$LD_LIBRARY_PATH \
-    CANN_TOOLKIT_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/Milan-ASL/Milan-ASL%20V100R001C13SPC702/Ascend-cann-toolkit_7.0.RC1.alpha002_linux-x86_64.run
-
-RUN wget ${CANN_TOOLKIT_URL} && \
-    chmod +x Ascend-cann-toolkit_7.0.RC1.alpha002_linux-x86_64.run && \
-    ./Ascend-cann-toolkit_7.0.RC1.alpha002_linux-x86_64.run --install && \
-    rm -f ./Ascend-cann-toolkit_7.0.RC1.alpha002_linux-x86_64.run
+RUN wget https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/Milan-ASL/Milan-ASL%20V100R001C13SPC702/Ascend-cann-toolkit_7.0.RC1.alpha002_linux-"$(uname -i)".run && \
+    chmod +x Ascend-cann-toolkit_7.0.RC1.alpha002_linux-"$(uname -i)".run && \
+    ./Ascend-cann-toolkit_7.0.RC1.alpha002_linux-"$(uname -i)".run --install && \
+    rm -f ./Ascend-cann-toolkit_7.0.RC1.alpha002_linux-"$(uname -i)".run
 
 ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:$LD_LIBRARY_PATH:/usr/lib64
 ENV ASCEND_TOOLKIT_HOME=/usr/local/Ascend/ascend-toolkit/latest
