@@ -10,6 +10,15 @@ namespace cv
 {
 namespace cann
 {
+void arithm_op(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const char* op,
+               AscendStream& stream);
+void arithm_op(const AscendMat& src, const Scalar& sc, AscendMat& dst, const char* op,
+               AscendStream& stream);
+void arithm_op(const Scalar& sc, const AscendMat& src, AscendMat& dst, const char* op,
+               AscendStream& stream);
+void arithm_op(const AscendMat& src, AscendMat& dst, const char* op, AscendStream& stream);
+void arithm_op(const AscendMat& src, float scalar, AscendMat& dst, const char* op,
+               AscendStream& stream);
 void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
                AscendStream& stream);
 void transpose(const AscendMat& src, int64_t* perm, AscendMat& dst, AscendStream& stream);

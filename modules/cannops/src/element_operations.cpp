@@ -7,6 +7,75 @@ namespace cv
 {
 namespace cann
 {
+
+static inline void applyMask(const AscendMat& src, AscendMat& dst, AscendMat& mask,
+                             AscendStream& stream)
+{
+    int mtype = mask.type();
+    CV_Assert((mtype == CV_8UC1 || mtype == CV_8SC1) && mask.size() == src.size());
+    AscendMat onesMask, castedMask;
+    onesMask.create(mask.rows, mask.cols, mask.type());
+
+    OperatorRunner runner;
+    runner.setOp("Div")
+        .addInput(mask, "x1")
+        .addInput(mask, "x2")
+        .addOutput(onesMask, "y")
+        .run(stream);
+
+    onesMask.convertTo(castedMask, dst.depth(), stream);
+    arithm_op(src, castedMask, dst, "Mul", stream);
+}
+
+static inline void applyScale(const AscendMat& src, AscendMat& dst, float scale,
+                              AscendStream& stream)
+{
+    OperatorRunner runner;
+    arithm_op(src, scale, dst, "Muls", stream);
+}
+
+void arithm_op(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const char* op,
+               AscendStream& stream)
+{
+    OperatorRunner runner;
+    runner.setOp(op).addInput(src1, "x1").addInput(src2, "x2").addOutput(dst, "y").run(stream);
+}
+
+void arithm_op(const AscendMat& src, const Scalar& sc, AscendMat& dst, const char* op,
+               AscendStream& stream)
+{
+    OperatorRunner runner;
+    runner.setOp(op)
+        .addInput(src, "x1")
+        .addInput(sc, src.type(), "x2")
+        .addOutput(dst, "y")
+        .run(stream);
+}
+
+void arithm_op(const Scalar& sc, const AscendMat& src, AscendMat& dst, const char* op,
+               AscendStream& stream)
+{
+    OperatorRunner runner;
+    runner.setOp(op)
+        .addInput(sc, src.type(), "x1")
+        .addInput(src, "x2")
+        .addOutput(dst, "y")
+        .run(stream);
+}
+
+void arithm_op(const AscendMat& src, AscendMat& dst, const char* op, AscendStream& stream)
+{
+    OperatorRunner runner;
+    runner.setOp(op).addInput(src, "x").addOutput(dst, "y").run(stream);
+}
+
+void arithm_op(const AscendMat& src, float scalar, AscendMat& dst, const char* op,
+               AscendStream& stream)
+{
+    OperatorRunner runner;
+    runner.setOp(op).addInput(src, "x").addAttr(scalar, "value").addOutput(dst, "y").run(stream);
+}
+
 static void arithm_op(InputArray _src1, InputArray _src2, OutputArray _dst, InputArray _mask,
                       float scale, int dtype, const char* op, AscendStream& stream)
 {
@@ -50,53 +119,49 @@ static void arithm_op(InputArray _src1, InputArray _src2, OutputArray _dst, Inpu
     }
 
     AscendMat dst = getOutputMat(_dst, size.height, size.width, CV_MAKE_TYPE(ddepth, cn), stream);
+
+    AscendMat castedSrc1, castedSrc2, castedRet;
+    if (scale != 1 && dtype < CV_32F)
+    {
+        castedRet.create(size.height, size.width, CV_MAKE_TYPE(CV_32F, cn));
+        if (!isScalar1)
+            src1.convertTo(castedSrc1, CV_32F, stream);
+
+        if (!isScalar2)
+            src2.convertTo(castedSrc2, CV_32F, stream);
+    }
+    else
+    {
+        castedSrc1 = src1;
+        castedSrc2 = src2;
+        castedRet = dst;
+    }
+
     OperatorRunner runner;
     if (isScalar1)
-        runner.setOp(op)
-            .addInput(val, src2.type(), "")
-            .addInput(src2, "")
-            .addOutput(dst, "")
-            .run(stream);
+        arithm_op(val, castedSrc2, castedRet, op, stream);
     else if (isScalar2)
-        runner.setOp(op)
-            .addInput(src1, "")
-            .addInput(val, src1.type(), "")
-            .addOutput(dst, "")
-            .run(stream);
+        arithm_op(castedSrc1, val, castedRet, op, stream);
     else
     {
         if (src2.empty())
-            runner.setOp(op).addInput(src1, "").addOutput(dst, "").run(stream);
+            arithm_op(castedSrc1, castedRet, op, stream);
         else
-            runner.setOp(op).addInput(src1, "").addInput(src2, "").addOutput(dst, "").run(stream);
+            arithm_op(castedSrc1, castedSrc2, castedRet, op, stream);
     }
 
     AscendMat mask = getInputMat(_mask, stream);
     if (!mask.empty())
-    {
-        int mtype = mask.type();
-        CV_Assert((mtype == CV_8UC1 || mtype == CV_8SC1) && mask.size() == size);
-        AscendMat onesMask, castedMask;
-        onesMask.create(mask.rows, mask.cols, mask.type());
-        runner.setOp("Div")
-            .addInput(mask, "")
-            .addInput(mask, "")
-            .addOutput(onesMask, "")
-            .run(stream);
-        onesMask.convertTo(castedMask, dst.depth(), stream);
-        runner.setOp("Mul")
-            .addInput(dst, "")
-            .addInput(castedMask, "")
-            .addOutput(dst, "")
-            .run(stream);
-    }
+        applyMask(castedRet, castedRet, mask, stream);
 
     if (scale != 1)
-        runner.setOp("Muls")
-            .addInput(dst, "")
-            .addOutput(dst, "")
-            .addAttr(scale, "value")
-            .run(stream);
+        applyScale(castedRet, castedRet, scale, stream);
+
+    if (castedRet.depth() != dst.depth())
+    {
+        runner.setOp("Round").addInput(castedRet, "x").addOutput(castedRet, "y").run(stream);
+        castedRet.convertTo(dst, stream);
+    }
 
     syncOutput(dst, _dst, stream);
 }
@@ -122,7 +187,7 @@ void multiply(InputArray src1, InputArray src2, OutputArray dst, float scale, in
 void divide(InputArray src1, InputArray src2, OutputArray dst, float scale, int dtype,
             AscendStream& stream)
 {
-    arithm_op(src1, src2, dst, noArray(), scale, dtype, "Div", stream);
+    arithm_op(src1, src2, dst, noArray(), scale, dtype, "RealDiv", stream);
 }
 
 void bitwise_and(InputArray src1, InputArray src2, OutputArray dst, InputArray mask,
@@ -167,27 +232,11 @@ void addWeighted(InputArray _src1, double alpha, InputArray _src2, double beta, 
     // TODO Consider overflow, should extend type or not?
     AscendMat src1Weighted(src1.size(), type), src2Weighted(src1.size(), type),
         srcWeightedSumRet(src1.size(), type);
-    OperatorRunner runner;
-    runner.setOp("Muls")
-        .addInput(src1, "")
-        .addOutput(src1Weighted, "")
-        .addAttr((float)alpha, "value")
-        .run(stream);
-    runner.setOp("Muls")
-        .addInput(src2, "")
-        .addOutput(src2Weighted, "")
-        .addAttr((float)beta, "value")
-        .run(stream);
-    runner.setOp("Add")
-        .addInput(src1Weighted, "")
-        .addInput(src2Weighted, "")
-        .addOutput(srcWeightedSumRet, "")
-        .run(stream);
-    runner.setOp("Adds")
-        .addInput(srcWeightedSumRet, "")
-        .addOutput(dst, "")
-        .addAttr((float)gamma, "value")
-        .run(stream);
+
+    arithm_op(src1, (float)alpha, src1Weighted, "Muls", stream);
+    arithm_op(src2, (float)beta, src2Weighted, "Muls", stream);
+    arithm_op(src1Weighted, src2Weighted, srcWeightedSumRet, "Add", stream);
+    arithm_op(srcWeightedSumRet, (float)gamma, dst, "Adds", stream);
 
     syncOutput(dst, _dst, stream);
 }
@@ -203,8 +252,8 @@ double threshold(AscendMat& src, AscendMat& dst, double thresh, double maxval, i
 
     OperatorRunner runner;
     runner.setOp("Threshold")
-        .addInput(src, "")
-        .addOutput(threshMat, "")
+        .addInput(src, "x")
+        .addOutput(threshMat, "y")
         .addAttr((float)thresh, "threshold")
         .run(stream);
 
@@ -216,71 +265,29 @@ double threshold(AscendMat& src, AscendMat& dst, double thresh, double maxval, i
         AscendMat ones(src.size(), src.type());
         Scalar s(1, 1, 1, 1);
         ones.setTo(s, stream);
-        runner.setOp("Sub")
-            .addInput(ones, "")
-            .addInput(threshMat, "")
-            .addOutput(threshInvMat, "")
-            .run(stream);
+        arithm_op(ones, threshMat, threshInvMat, "Sub", stream);
 
         if (type == 1)
-        {
-            runner.setOp("Muls")
-                .addInput(threshInvMat, "")
-                .addOutput(dst, "")
-                .addAttr((float)maxval, "value")
-                .run(stream);
-        }
+            arithm_op(threshInvMat, (float)maxval, dst, "Muls", stream);
         else if (type == 2)
         {
             AscendMat ToZeroInvMat(src.size(), src.type());
             AscendMat TruncMat(src.size(), src.type());
-            runner.setOp("Mul")
-                .addInput(threshInvMat, "")
-                .addInput(src, "")
-                .addOutput(ToZeroInvMat, "")
-                .run(stream);
-            runner.setOp("Muls")
-                .addInput(threshMat, "")
-                .addOutput(TruncMat, "")
-                .addAttr((float)thresh, "value")
-                .run(stream);
-            runner.setOp("Add")
-                .addInput(ToZeroInvMat, "")
-                .addInput(TruncMat, "")
-                .addOutput(dst, "")
-                .run(stream);
+            arithm_op(threshInvMat, src, ToZeroInvMat, "Mul", stream);
+            arithm_op(threshMat, (float)thresh, TruncMat, "Muls", stream);
+            arithm_op(ToZeroInvMat, TruncMat, dst, "Add", stream);
         }
         else
-        {
-            runner.setOp("Mul")
-                .addInput(threshInvMat, "")
-                .addInput(src, "")
-                .addOutput(dst, "")
-                .run(stream);
-        }
+            arithm_op(threshInvMat, src, dst, "Mul", stream);
     }
     else
     {
         if (type == 0) /* THRESH_BINARY = 0 */
-        {
-            runner.setOp("Muls")
-                .addInput(threshMat, "")
-                .addOutput(dst, "")
-                .addAttr((float)maxval, "value")
-                .run(stream);
-        }
+            arithm_op(threshMat, (float)maxval, dst, "Muls", stream);
         else if (type == 3) /* THRESH_TOZERO = 3 */
-        {
-            runner.setOp("Mul")
-                .addInput(threshMat, "")
-                .addInput(src, "")
-                .addOutput(dst, "")
-                .run(stream);
-        }
+            arithm_op(threshMat, src, dst, "Mul", stream);
         else
-        {
             CV_Error(Error::AscendApiCallError, "Unknown/unsupported threshold type");
-        }
     }
     return thresh;
 }

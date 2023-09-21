@@ -141,7 +141,7 @@ void aclrtMemsetWarpper(std::shared_ptr<uchar>& ptr, int32_t value, size_t count
     }
 }
 
-static inline aclDataType getACLType(int opencvdepth)
+aclDataType getACLType(int opencvdepth)
 {
     switch (opencvdepth)
     {
@@ -167,7 +167,7 @@ static inline aclDataType getACLType(int opencvdepth)
 }
 
 std::shared_ptr<uchar> mallocAndUpload(const void* data, size_t size, AscendStream& stream,
-                                              AscendMat::Allocator* allocator)
+                                       AscendMat::Allocator* allocator)
 {
     std::shared_ptr<uchar> ptr = allocator->allocate(size);
     aclrtStream rawStream = AscendStreamAccessor::getStream(stream);
@@ -202,7 +202,7 @@ OperatorRunner& OperatorRunner::reset()
     {
         CV_ACL_SAFE_CALL(aclDestroyDataBuffer(buf));
     }
-    if(opAttrInit)
+    if (opAttrInit)
         aclopDestroyAttr(opAttr_);
     inputDesc_.clear();
     outputDesc_.clear();
@@ -301,12 +301,12 @@ OperatorRunner& OperatorRunner::addInput(const Scalar& sc, int type, const char*
 {
     uchar rawData[32];
     cv::scalarToRawData(sc, rawData, type, 0);
-    std::shared_ptr<uchar> scPtr =
-        mallocAndUpload(rawData, (CV_ELEM_SIZE(type)), AscendStream::Null(), AscendMat::defaultAllocator());
+    std::shared_ptr<uchar> scPtr = mallocAndUpload(
+        rawData, (CV_ELEM_SIZE(type)), AscendStream::Null(), AscendMat::defaultAllocator());
 
     int64_t dims[] = {1, 1, 1, (CV_MAT_CN(type))};
     AscendTensor tensor(scPtr, (CV_ELEM_SIZE(type)), dims, sizeof(dims) / sizeof(dims[0]),
-                              getACLType(CV_MAT_DEPTH(type)), name);
+                        getACLType(CV_MAT_DEPTH(type)), name);
     return addInput(tensor);
 }
 

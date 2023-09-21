@@ -11,17 +11,11 @@ namespace cann
 static inline aclFormat getAclFormat(const char* type)
 {
     if (strcmp(type, "NCHW") == 0)
-    {
         return ACL_FORMAT_NCHW;
-    }
     else if (strcmp(type, "NHWC") == 0)
-    {
         return ACL_FORMAT_NHWC;
-    }
     else
-    {
         CV_Error(Error::StsBadArg, "Unknown/unsupported matrix format");
-    }
 }
 
 void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
@@ -29,8 +23,8 @@ void transData(const AscendMat& src, AscendMat& dst, const char* from, const cha
 {
     OperatorRunner runner;
     runner.setOp("TransData")
-        .addInput(src, "")
-        .addOutput(dst, "")
+        .addInput(src, "src")
+        .addOutput(dst, "dst")
         .addAttr(from, "src_format")
         .addAttr(to, "dst_format")
         .run(stream);
@@ -60,12 +54,16 @@ void merge(const AscendMat* src, size_t n, AscendMat& dst, AscendStream& stream)
         runner.addInput(src[i], ("x" + std::to_string(i)).c_str());
     }
 
-    runner.addOutput(dst, "").addAttr(3, "concat_dim").run(stream);
+    runner.addOutput(dst, "output_data").addAttr(3, "concat_dim").run(stream);
 }
 
 void merge(const AscendMat* src, size_t n, OutputArray _dst, AscendStream& stream)
 {
-    AscendMat dst = getOutputMat(_dst, src->rows, src->cols, CV_MAKE_TYPE(src->depth(), n), stream);
+    int cns = 0;
+    for (size_t i = 0; i < n; i++)
+        cns += src[i].channels();
+    AscendMat dst =
+        getOutputMat(_dst, src->rows, src->cols, CV_MAKE_TYPE(src->depth(), cns), stream);
     merge(src, n, dst, stream);
     syncOutput(dst, _dst, stream);
 }
@@ -83,11 +81,11 @@ void split(const AscendMat& src, AscendMat* dst, AscendStream& stream)
     int cn = src.channels();
 
     OperatorRunner runner;
-    runner.setOp("SplitD").addInput(src, "");
+    runner.setOp("SplitD").addInput(src, "x");
     for (int i = 0; i < cn; i++)
     {
         dst[i].create(src.rows, src.cols, CV_MAKE_TYPE(src.depth(), 1));
-        runner.addOutput(dst[i], "");
+        runner.addOutput(dst[i], ("y" + std::to_string(i)).c_str());
     }
     runner.addAttr(3, "split_dim").addAttr(cn, "num_split").run(stream);
 }
@@ -109,8 +107,8 @@ void transpose(const AscendMat& src, int64_t* perm, AscendMat& dst, AscendStream
 {
     OperatorRunner runner;
     runner.setOp("TransposeD")
-        .addInput(src, "")
-        .addOutput(dst, "")
+        .addInput(src, "x")
+        .addOutput(dst, "y")
         .addAttr(perm, 4, "perm")
         .run(stream);
 }
@@ -128,11 +126,12 @@ void transpose(InputArray _src, OutputArray _dst, AscendStream& stream)
 
 void flip(const AscendMat& src, std::vector<int32_t>& asixs, AscendMat& dst, AscendStream& stream)
 {
+    int64_t dim = asixs.size();
     OperatorRunner runner;
     runner.setOp("ReverseV2")
-        .addInput(src, "")
-        .addInput<int32_t>(&asixs.at(0), asixs.size(), ACL_INT32, stream, "")
-        .addOutput(dst, "")
+        .addInput(src, "x")
+        .addInput<int32_t>(&asixs.at(0), &dim, 1, ACL_INT32, "axis")
+        .addOutput(dst, "y")
         .run(stream);
 }
 
@@ -143,13 +142,9 @@ void flip(InputArray _src, OutputArray _dst, int flipCode, AscendStream& stream)
 
     std::vector<int32_t> asix;
     if (flipCode == 0)
-    {
         asix.push_back(1);
-    }
     else if (flipCode > 0)
-    {
         asix.push_back(2);
-    }
     else
     {
         asix.push_back(1);

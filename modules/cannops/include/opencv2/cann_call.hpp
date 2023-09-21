@@ -34,6 +34,7 @@ void aclrtMemcpy2dWarpper(void* dst, size_t dpitch, const std::shared_ptr<uchar>
                           AscendStream& stream);
 void aclrtMemsetWarpper(std::shared_ptr<uchar>& ptr, int32_t value, size_t count,
                         AscendStream& stream);
+aclDataType getACLType(int opencvdepth);
 std::shared_ptr<uchar> mallocAndUpload(const void* data, size_t size, AscendStream& stream,
                                        AscendMat::Allocator* allocator);
 
@@ -107,16 +108,20 @@ public:
     OperatorRunner& addAttr(const int64_t* value, int size, const char* name);
     OperatorRunner& addInput(const AscendMat& mat, const char* name);
     OperatorRunner& addInput(const Scalar& sc, int type, const char* name);
+
     template <typename T>
-    OperatorRunner& addInput(const T* value, size_t size, aclDataType type, AscendStream& stream,
+    OperatorRunner& addInput(const T* value, int64_t* dims, size_t dimSize, aclDataType type,
                              const char* name)
     {
-        size_t dataSize = size * sizeof(T);
-        std::shared_ptr<uchar> axisPtr =
-            mallocAndUpload(value, dataSize, stream, AscendMat::defaultAllocator());
+        int64_t size = dims[0];
+        for (size_t i = 1; i < dimSize; i++)
+            size *= dims[i];
 
-        int64_t dims[] = {(int64_t)size};
-        AscendTensor tensor(axisPtr, dataSize, dims, 1, type, name);
+        size_t dataSize = size * sizeof(T);
+        std::shared_ptr<uchar> ptr =
+            mallocAndUpload(value, dataSize, AscendStream::Null(), AscendMat::defaultAllocator());
+
+        AscendTensor tensor(ptr, dataSize, dims, dimSize, type, name);
         return addInput(tensor);
     }
     OperatorRunner& addOutput(AscendMat& mat, const char* name);

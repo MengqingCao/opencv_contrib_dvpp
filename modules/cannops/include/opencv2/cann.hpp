@@ -67,16 +67,17 @@ public:
 
     //! constructs AscendMat of the specified size and type
     CV_WRAP AscendMat(int rows, int cols, int type,
-                   AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
+                      AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
     //! constructs AscendMat of the specified size and type
-    CV_WRAP AscendMat(Size size, int type, AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
+    CV_WRAP AscendMat(Size size, int type,
+                      AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
 
     //! constructs AscendMat and fills it with the specified value s
     CV_WRAP AscendMat(int rows, int cols, int type, Scalar& s,
-                   AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
+                      AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
     //! constructs AscendMat and fills it with the specified value s
     CV_WRAP AscendMat(Size size, int type, Scalar& s,
-                   AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
+                      AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
 
     //! copy constructor
     CV_WRAP AscendMat(const AscendMat& m);
@@ -87,7 +88,7 @@ public:
 
     //! builds AscendMat from host memory (Blocking call)
     CV_WRAP explicit AscendMat(InputArray arr, AscendStream& stream,
-                            AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
+                               AscendMat::Allocator* allocator = AscendMat::defaultAllocator());
 
     //! assignment operators
     AscendMat& operator=(const AscendMat& m);
@@ -124,6 +125,9 @@ public:
 
     //! converts AscendMat to another datatype (Non-Blocking call)
     CV_WRAP void convertTo(CV_OUT AscendMat& dst, int rtype, AscendStream& stream) const;
+
+    //! converts AscendMat to another datatype, dst mat is allocated. (Non-Blocking call)
+    CV_WRAP void convertTo(CV_OUT AscendMat& dst, AscendStream& stream) const;
 
     //! returns true iff the AscendMat data is continuous
     //! (i.e. when there are no gaps between successive rows)

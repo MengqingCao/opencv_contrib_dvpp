@@ -182,15 +182,8 @@ AscendMat& AscendMat::setTo(const Scalar& sc, AscendStream& stream)
         return *this;
 
     aclrtMemsetWarpper(data, 0, totalBytes, stream);
-
     AscendMat dst(rows, cols, type());
-    // TODO use AssignAdd to avoid memcpy, or use broadcase.
-    OperatorRunner runner;
-    runner.setOp("Add")
-        .addInput(*this, "")
-        .addInput(sc, this->flags, "")
-        .addOutput(dst, "")
-        .run(stream);
+    arithm_op(*this, sc, dst, "Add", stream);
     swap(dst);
 
     return *this;
@@ -207,8 +200,7 @@ AscendMat& AscendMat::setTo(float sc, AscendStream& stream)
     aclrtMemsetWarpper(data, 0, totalBytes, stream);
 
     AscendMat dst(rows, cols, type());
-    OperatorRunner runner;
-    runner.setOp("Adds").addInput(*this, "").addOutput(dst, "").addAttr(sc, "value").run(stream);
+    arithm_op(*this, sc, dst, "Adds", stream);
     swap(dst);
 
     return *this;
@@ -223,8 +215,17 @@ void AscendMat::convertTo(AscendMat& dst, int _rtype, AscendStream& stream) cons
 {
     int cn = channels();
     dst.create(rows, cols, CV_MAKE_TYPE(_rtype, cn));
+    convertTo(dst, stream);
+}
+
+void AscendMat::convertTo(AscendMat& dst, AscendStream& stream) const
+{
     OperatorRunner runner;
-    runner.setOp("Cast").addInput(*this, "").addOutput(dst, "").run(stream);
+    runner.setOp("Cast")
+        .addInput(*this, "x")
+        .addOutput(dst, "y")
+        .addAttr((int32_t)(getACLType(dst.depth())), "dst_type")
+        .run(stream);
 }
 
 static AscendMat getAscendMat(InputArray arr)
