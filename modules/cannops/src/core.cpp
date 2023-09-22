@@ -156,7 +156,6 @@ void flip(InputArray _src, OutputArray _dst, int flipCode, AscendStream& stream)
 
 void rotate(InputArray _src, OutputArray _dst, int rotateMode, AscendStream& stream)
 {
-    CV_Assert(_src.dims() <= 2);
     AscendMat src = getInputMat(_src, stream), dst, tempMat;
     switch (rotateMode)
     {

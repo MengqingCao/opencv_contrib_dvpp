@@ -14,3 +14,4 @@ ocv_include_directories(${CMAKE_SOURCE_DIR}/modules/ts/include)
 
 ocv_add_accuracy_tests(DEPENDS_ON opencv_cannops)
 ocv_add_perf_tests(DEPENDS_ON opencv_cannops)
+ocv_add_samples(opencv_cannops)
