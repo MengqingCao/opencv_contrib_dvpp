@@ -146,5 +146,16 @@ PERF_TEST_P(CPU, CROP, TYPICAL_ASCEND_MAT_SIZES)
     SANITY_CHECK_NOTHING();
 }
 
+PERF_TEST_P(NPU, CROP_OVERLOAD, TYPICAL_ASCEND_MAT_SIZES)
+{
+    Mat mat(GET_PARAM(0), CV_8UC3);
+    Mat dst;
+    declare.in(mat, WARMUP_RNG);
+    Rect b(1, 2, 4, 4);
+    cv::cann::setDevice(DEVICE_ID);
+    TEST_CYCLE() { cv::cann::crop(mat, b); }
+    cv::cann::resetDevice();
+    SANITY_CHECK_NOTHING();
+}
 } // namespace
 } // namespace opencv_test

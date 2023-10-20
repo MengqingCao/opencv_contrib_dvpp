@@ -484,6 +484,7 @@ CV_EXPORTS_W void resize(InputArray _src, OutputArray _dst, Size dsize, double i
 CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize, double inv_scale_x,
                          double inv_scale_y, int interpolation,
                          AscendStream& stream = AscendStream::Null());
+
 //! @} cannops_core
 
 //! @addtogroup cannimgproc

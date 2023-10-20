@@ -189,6 +189,7 @@ TEST(CORE, RESIZE)
     // only support {2 INTER_CUBIC} and {3 INTER_AREA}
     // only the resize result of INTER_AREA is close to CV's.
     int flags = 3;
+    cv::cann::setDevice(0);
     cv::resize(cpuMat, resized_cv, dsize, 0, 0, flags);
     cv::cann::resize(cpuMat, checker, dsize, 0, 0, flags);
     EXPECT_MAT_NEAR(resized_cv, checker, 1e-4);
@@ -208,6 +209,7 @@ TEST(CORE, RESIZE)
     cv::cann::resize(npuMat, npuChecker, Size(), 0.5, 0.5, flags);
     npuChecker.download(checker);
     EXPECT_MAT_NEAR(resized_cv, checker, 1e-4);
+    cv::cann::resetDevice();
 }
 
 
