@@ -39,3 +39,11 @@ Mat genMask()
     rectangle(mask, cv::Rect(5, 5, 3, 3), Scalar(255), -1);
     return mask;
 }
+
+AscendMat genNpuMask()
+{
+    cv::Mat mask = genMask();
+    cv::cann::AscendMat npuMask;
+    npuMask.upload(mask);
+    return npuMask;
+}

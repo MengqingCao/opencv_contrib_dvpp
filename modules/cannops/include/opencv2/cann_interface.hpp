@@ -38,18 +38,35 @@ namespace cann
  * @param stream AscendStream for the asynchronous version.
  * @sa cv::add cuda::add
  */
-CV_EXPORTS_W void add(InputArray src1, InputArray src2, OutputArray dst,
-                      InputArray mask = noArray(), int dtype = -1,
+CV_EXPORTS_W void add(const InputArray src1, const InputArray src2, OutputArray dst,
+                      const InputArray mask = noArray(), int dtype = -1,
                       AscendStream& stream = AscendStream::Null());
 // This code should not be compiled nor analyzed by doxygen. This interface only for python binding
 // code generation. add(InputArray, InputArray ...) can accept Scalar as its parametr.(Scalar -> Mat
 // -> InputArray)
 #ifdef NEVER_DEFINED
-CV_EXPORTS_W void add(InputArray src1, Scalar src2, OutputArray dst, InputArray mask = noArray(),
-                      int dtype = -1, AscendStream& stream = AscendStream::Null());
-CV_EXPORTS_W void add(Scalar src1, InputArray src2, OutputArray dst, InputArray mask = noArray(),
-                      int dtype = -1, AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void add(const InputArray src1, const Scalar& src2, OutputArray dst,
+                      const InputArray mask = noArray(), int dtype = -1,
+                      AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void add(const Scalar& src1, const InputArray src2, OutputArray dst,
+                      const InputArray mask = noArray(), int dtype = -1,
+                      AscendStream& stream = AscendStream::Null());
 #endif
+// More overload functions. In order to decouple from the main opencv repository and simplify
+// user calling methods, besides the traditional Input/OutputArray parameters, some
+// overloaded functions for the AcendMat parameter is also provided.
+/** @overload */
+CV_EXPORTS_W void add(const AscendMat& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                      const AscendMat& mask = AscendMat(), int dtype = -1,
+                      AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void add(const AscendMat& src1, const Scalar& src2, CV_OUT AscendMat& dst,
+                      const AscendMat& mask = AscendMat(), int dtype = -1,
+                      AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void add(const Scalar& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                      const AscendMat& mask = AscendMat(), int dtype = -1,
+                      AscendStream& stream = AscendStream::Null());
 
 /** @brief Computes a matrix-matrix or matrix-scalar difference.
  * @param src1 First source matrix or scalar.
@@ -62,17 +79,29 @@ CV_EXPORTS_W void add(Scalar src1, InputArray src2, OutputArray dst, InputArray 
  * @param stream AscendStream for the asynchronous version.
  * @sa cv::subtract cuda::subtract
  */
-CV_EXPORTS_W void subtract(InputArray src1, InputArray src2, OutputArray dst,
-                           InputArray mask = noArray(), int dtype = -1,
+CV_EXPORTS_W void subtract(const InputArray src1, const InputArray src2, OutputArray dst,
+                           const InputArray mask = noArray(), int dtype = -1,
                            AscendStream& stream = AscendStream::Null());
 #ifdef NEVER_DEFINED
-CV_EXPORTS_W void subtract(InputArray src1, Scalar src2, OutputArray dst,
-                           InputArray mask = noArray(), int dtype = -1,
+CV_EXPORTS_W void subtract(const InputArray src1, const Scalar& src2, OutputArray dst,
+                           const InputArray mask = noArray(), int dtype = -1,
                            AscendStream& stream = AscendStream::Null());
-CV_EXPORTS_W void subtract(Scalar src1, InputArray src2, OutputArray dst,
-                           InputArray mask = noArray(), int dtype = -1,
+CV_EXPORTS_W void subtract(const Scalar& src1, const InputArray src2, OutputArray dst,
+                           const InputArray mask = noArray(), int dtype = -1,
                            AscendStream& stream = AscendStream::Null());
 #endif
+/** @overload */
+CV_EXPORTS_W void subtract(const AscendMat& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                           const AscendMat& mask = AscendMat(), int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void subtract(const AscendMat& src1, const Scalar& src2, CV_OUT AscendMat& dst,
+                           const AscendMat& mask = AscendMat(), int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void subtract(const Scalar& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                           const AscendMat& mask = AscendMat(), int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
 
 /** @brief Computes a matrix-matrix or matrix-scalar per-element product.
  * @param src1 First source matrix or scalar.
@@ -84,14 +113,29 @@ CV_EXPORTS_W void subtract(Scalar src1, InputArray src2, OutputArray dst,
  * @param stream AscendStream for the asynchronous version.
  * @sa cv::multiply cuda::multiply
  */
-CV_EXPORTS_W void multiply(InputArray src1, InputArray src2, OutputArray dst, float scale = 1,
-                           int dtype = -1, AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void multiply(const InputArray src1, const InputArray src2, OutputArray dst,
+                           float scale = 1, int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
 #ifdef NEVER_DEFINED
-CV_EXPORTS_W void multiply(InputArray src1, Scalar src2, OutputArray dst, float scale = 1,
-                           int dtype = -1, AscendStream& stream = AscendStream::Null());
-CV_EXPORTS_W void multiply(Scalar src1, InputArray src2, OutputArray dst, float scale = 1,
-                           int dtype = -1, AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void multiply(const InputArray src1, const Scalar& src2, OutputArray dst,
+                           float scale = 1, int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void multiply(const Scalar& src1, const InputArray src2, OutputArray dst,
+                           float scale = 1, int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
 #endif
+/** @overload */
+CV_EXPORTS_W void multiply(const AscendMat& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                           float scale = 1, int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void multiply(const AscendMat& src1, const Scalar& src2, CV_OUT AscendMat& dst,
+                           float scale = 1, int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void multiply(const Scalar& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                           float scale = 1, int dtype = -1,
+                           AscendStream& stream = AscendStream::Null());
 
 /** @brief Computes a matrix-matrix or matrix-scalar division.
  * @param src1 First source matrix or scalar.
@@ -103,14 +147,28 @@ CV_EXPORTS_W void multiply(Scalar src1, InputArray src2, OutputArray dst, float 
  * @param stream AscendStream for the asynchronous version.
  * @sa cv::divide cuda::divide
  */
-CV_EXPORTS_W void divide(InputArray src1, InputArray src2, OutputArray dst, float scale = 1,
-                         int dtype = -1, AscendStream& stream = AscendStream::Null());
-#ifdef NEVER_DEFINED
-CV_EXPORTS_W void divide(InputArray src1, Scalar src2, OutputArray dst, float scale = 1, int dtype = -1,
+CV_EXPORTS_W void divide(const InputArray src1, const InputArray src2, OutputArray dst,
+                         float scale = 1, int dtype = -1,
                          AscendStream& stream = AscendStream::Null());
-CV_EXPORTS_W void divide(Scalar src1, InputArray src2, OutputArray dst, float scale = 1, int dtype = -1,
+#ifdef NEVER_DEFINED
+CV_EXPORTS_W void divide(const InputArray src1, const Scalar& src2, OutputArray dst,
+                         float scale = 1, int dtype = -1,
+                         AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void divide(const Scalar& src1, const InputArray src2, OutputArray dst,
+                         float scale = 1, int dtype = -1,
                          AscendStream& stream = AscendStream::Null());
 #endif
+CV_EXPORTS_W void divide(const AscendMat& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                         float scale = 1, int dtype = -1,
+                         AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void divide(const AscendMat& src1, const Scalar& src2, CV_OUT AscendMat& dst,
+                         float scale = 1, int dtype = -1,
+                         AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void divide(const Scalar& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                         float scale = 1, int dtype = -1,
+                         AscendStream& stream = AscendStream::Null());
 
 /** @brief Performs a per-element bitwise conjunction of two matrices (or of matrix and scalar).
  * @param src1 First source matrix or scalar.
@@ -122,17 +180,28 @@ CV_EXPORTS_W void divide(Scalar src1, InputArray src2, OutputArray dst, float sc
  * @param stream AscendStream for the asynchronous version.
  * @sa cv::bitwise_and cuda::bitwise_and
  */
-CV_EXPORTS_W void bitwise_and(InputArray src1, InputArray src2, OutputArray dst,
-                              InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_and(const InputArray src1, const InputArray src2, OutputArray dst,
+                              const InputArray mask = noArray(),
                               AscendStream& stream = AscendStream::Null());
 #ifdef NEVER_DEFINED
-CV_EXPORTS_W void bitwise_and(InputArray src1, Scalar src2, OutputArray dst,
-                              InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_and(const InputArray src1, const Scalar& src2, OutputArray dst,
+                              const InputArray mask = noArray(),
                               AscendStream& stream = AscendStream::Null());
-CV_EXPORTS_W void bitwise_and(Scalar src1, InputArray src2, OutputArray dst,
-                              InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_and(const Scalar& src1, const InputArray src2, OutputArray dst,
+                              const InputArray mask = noArray(),
                               AscendStream& stream = AscendStream::Null());
 #endif
+CV_EXPORTS_W void bitwise_and(const AscendMat& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                              const AscendMat& mask = AscendMat(),
+                              AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void bitwise_and(const AscendMat& src1, const Scalar& src2, CV_OUT AscendMat& dst,
+                              const AscendMat& mask = AscendMat(),
+                              AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void bitwise_and(const Scalar& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                              const AscendMat& mask = AscendMat(),
+                              AscendStream& stream = AscendStream::Null());
 
 /** @brief Performs a per-element bitwise disjunction of two matrices (or of matrix and scalar).
  * @param src1 First source matrix or scalar.
@@ -144,17 +213,28 @@ CV_EXPORTS_W void bitwise_and(Scalar src1, InputArray src2, OutputArray dst,
  * @param stream AscendStream for the asynchronous version.
  * @sa cv::bitwise_or cuda::bitwise_or
  */
-CV_EXPORTS_W void bitwise_or(InputArray src1, InputArray src2, OutputArray dst,
-                             InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_or(const InputArray src1, const InputArray src2, OutputArray dst,
+                             const InputArray mask = noArray(),
                              AscendStream& stream = AscendStream::Null());
 #ifdef NEVER_DEFINED
-CV_EXPORTS_W void bitwise_or(InputArray src1, Scalar src2, OutputArray dst,
-                             InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_or(const InputArray src1, const Scalar& src2, OutputArray dst,
+                             const InputArray mask = noArray(),
                              AscendStream& stream = AscendStream::Null());
-CV_EXPORTS_W void bitwise_or(Scalar src1, InputArray src2, OutputArray dst,
-                             InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_or(const Scalar& src1, const InputArray src2, OutputArray dst,
+                             const InputArray mask = noArray(),
                              AscendStream& stream = AscendStream::Null());
 #endif
+CV_EXPORTS_W void bitwise_or(const AscendMat& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                             const AscendMat& mask = AscendMat(),
+                             AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void bitwise_or(const AscendMat& src1, const Scalar& src2, CV_OUT AscendMat& dst,
+                             const AscendMat& mask = AscendMat(),
+                             AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void bitwise_or(const Scalar& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                             const AscendMat& mask = AscendMat(),
+                             AscendStream& stream = AscendStream::Null());
 
 /** @brief Performs a per-element bitwise exclusive or operation of two matrices (or of matrix and
  * scalar).
@@ -167,17 +247,28 @@ CV_EXPORTS_W void bitwise_or(Scalar src1, InputArray src2, OutputArray dst,
  * @param stream AscendStream for the asynchronous version.
  * @sa cv::bitwise_xor cuda::bitwise_xor
  */
-CV_EXPORTS_W void bitwise_xor(InputArray src1, InputArray src2, OutputArray dst,
-                              InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_xor(const InputArray src1, const InputArray src2, OutputArray dst,
+                              const InputArray mask = noArray(),
                               AscendStream& stream = AscendStream::Null());
 #ifdef NEVER_DEFINED
-CV_EXPORTS_W void bitwise_xor(InputArray src1, Scalar src2, OutputArray dst,
-                              InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_xor(const InputArray src1, const Scalar& src2, OutputArray dst,
+                              const InputArray mask = noArray(),
                               AscendStream& stream = AscendStream::Null());
-CV_EXPORTS_W void bitwise_xor(Scalar src1, InputArray src2, OutputArray dst,
-                              InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_xor(const Scalar& src1, const InputArray src2, OutputArray dst,
+                              const InputArray mask = noArray(),
                               AscendStream& stream = AscendStream::Null());
 #endif
+CV_EXPORTS_W void bitwise_xor(const AscendMat& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                              const AscendMat& mask = AscendMat(),
+                              AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void bitwise_xor(const AscendMat& src1, const Scalar& src2, CV_OUT AscendMat& dst,
+                              const AscendMat& mask = AscendMat(),
+                              AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void bitwise_xor(const Scalar& src1, const AscendMat& src2, CV_OUT AscendMat& dst,
+                              const AscendMat& mask = AscendMat(),
+                              AscendStream& stream = AscendStream::Null());
 
 /** @brief Performs a per-element bitwise inversion.
  * @param src First source matrix.
@@ -188,7 +279,12 @@ CV_EXPORTS_W void bitwise_xor(Scalar src1, InputArray src2, OutputArray dst,
  * @param stream AscendStream for the asynchronous version.
  * @sa cv::bitwise_not cuda::bitwise_not
  */
-CV_EXPORTS_W void bitwise_not(InputArray src, OutputArray dst, InputArray mask = noArray(),
+CV_EXPORTS_W void bitwise_not(const InputArray src, OutputArray dst,
+                              const InputArray mask = noArray(),
+                              AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void bitwise_not(const AscendMat& src, CV_OUT AscendMat& dst,
+                              const AscendMat& mask = AscendMat(),
                               AscendStream& stream = AscendStream::Null());
 
 /** @brief Computes the weighted sum of two arrays.
@@ -213,8 +309,12 @@ channel is processed independently.
 
 @sa cv::addWeighted cv::cuda::addWeighted
  */
-CV_EXPORTS_W void addWeighted(InputArray src1, double alpha, InputArray src2, double beta,
-                              double gamma, OutputArray dst, int dtype = -1,
+CV_EXPORTS_W void addWeighted(const InputArray src1, double alpha, const InputArray src2,
+                              double beta, double gamma, OutputArray dst, int dtype = -1,
+                              AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void addWeighted(const AscendMat& src1, double alpha, const AscendMat& src2,
+                              double beta, double gamma, CV_OUT AscendMat& dst, int dtype = -1,
                               AscendStream& stream = AscendStream::Null());
 
 /** @brief Applies a fixed-level threshold to each array element.
@@ -229,8 +329,11 @@ THRESH_TRIANGLE threshold types are not supported.
 
 @sa cv::threshold cv::cuda::threshold
 */
-CV_EXPORTS_W double threshold(InputArray src, OutputArray dst, double thresh, double maxval,
+CV_EXPORTS_W double threshold(const InputArray src, OutputArray dst, double thresh, double maxval,
                               int type, AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W double threshold(const AscendMat& src, CV_OUT AscendMat& dst, double thresh,
+                              double maxval, int type, AscendStream& stream = AscendStream::Null());
 
 //! @} cannops_elem
 
@@ -246,10 +349,16 @@ CV_EXPORTS_W double threshold(InputArray src, OutputArray dst, double thresh, do
 
 @sa cv::merge cv::cuda::merge
  */
-CV_EXPORTS void merge(const AscendMat* src, size_t n, OutputArray dst,
+CV_EXPORTS_W void merge(const AscendMat* src, size_t n, CV_OUT AscendMat& dst,
                       AscendStream& stream = AscendStream::Null());
 /** @overload */
-CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, OutputArray dst,
+CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, CV_OUT AscendMat& dst,
+                        AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void merge(const AscendMat* src, size_t n, OutputArray& dst,
+                        AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, OutputArray& dst,
                         AscendStream& stream = AscendStream::Null());
 
 /** @brief Copies each plane of a multi-channel matrix into an array.
@@ -260,9 +369,16 @@ CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, OutputArray dst,
 
 @sa cv::split cv::cuda::split
  */
-CV_EXPORTS void split(InputArray src, AscendMat* dst, AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void split(const AscendMat& src, AscendMat* dst,
+                      AscendStream& stream = AscendStream::Null());
 /** @overload */
-CV_EXPORTS_W void split(InputArray src, CV_OUT std::vector<AscendMat>& dst,
+CV_EXPORTS_W void split(const AscendMat& src, CV_OUT std::vector<AscendMat>& dst,
+                        AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void split(const InputArray src, AscendMat* dst,
+                        AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void split(const InputArray src, CV_OUT std::vector<AscendMat>& dst,
                         AscendStream& stream = AscendStream::Null());
 
 /** @brief Transposes a matrix.
@@ -275,7 +391,9 @@ CV_EXPORTS_W void split(InputArray src, CV_OUT std::vector<AscendMat>& dst,
  */
 CV_EXPORTS_W void transpose(InputArray src, OutputArray dst,
                             AscendStream& stream = AscendStream::Null());
-
+/** @overload */
+CV_EXPORTS_W void transpose(const AscendMat& src, CV_OUT AscendMat& dst,
+                            AscendStream& stream = AscendStream::Null());
 /** @brief Flips a 2D matrix around vertical, horizontal, or both axes.
 
 @param src Source matrix.
@@ -290,7 +408,9 @@ CV_EXPORTS_W void transpose(InputArray src, OutputArray dst,
  */
 CV_EXPORTS_W void flip(InputArray src, OutputArray dst, int flipCode,
                        AscendStream& stream = AscendStream::Null());
-
+/** @overload */
+CV_EXPORTS_W void flip(const AscendMat& src, CV_OUT AscendMat& dst, int flipCode,
+                       AscendStream& stream = AscendStream::Null());
 /** @brief Rotates a 2D array in multiples of 90 degrees.
 The function cv::rotate rotates the array in one of three different ways:
 *   Rotate by 90 degrees clockwise (rotateCode = ROTATE_90_CLOCKWISE).
@@ -305,6 +425,64 @@ and the rows and cols are switched for ROTATE_90_CLOCKWISE and ROTATE_90_COUNTER
 @sa cv::rotate
 */
 CV_EXPORTS_W void rotate(InputArray src, OutputArray dst, int rotateCode,
+                         AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void rotate(const AscendMat& src, CV_OUT AscendMat& dst, int rotateMode,
+                         AscendStream& stream = AscendStream::Null());
+
+/** @brief crop a 2D array.
+The function crops the matrix by given cv::Rect.
+Output matrix must be of the same depth as input one, size is specified by given rect size.
+
+@param src input array.
+@param rect a rect to crop a array to
+
+@sa cv::gapi::crop
+*/
+CV_EXPORTS_W AscendMat crop(InputArray _src, const Rect& rect,
+                            AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W AscendMat crop(const AscendMat& src, const Rect& rect,
+                            AscendStream& stream = AscendStream::Null());
+/** @brief Resizes an image src down to or up to the specified size.
+@param src    input image
+@param dst    output image; it has the size dsize (when it is non-zero) or the size computed from
+src.size(), fx, and fy; the type of dst is the same as of src.
+@param dsize  output image size; if it equals zero, it is computed as:
+     \f[𝚍𝚜𝚒𝚣𝚎 = 𝚂𝚒𝚣𝚎(𝚛𝚘𝚞𝚗𝚍(𝚏𝚡*𝚜𝚛𝚌.𝚌𝚘𝚕𝚜), 𝚛𝚘𝚞𝚗𝚍(𝚏𝚢*𝚜𝚛𝚌.𝚛𝚘𝚠𝚜))\f]
+     Either dsize or both fx and fy must be non-zero.
+@param fx     scale factor along the horizontal axis; when it equals 0, it is computed as
+\f[(𝚍𝚘𝚞𝚋𝚕𝚎)𝚍𝚜𝚒𝚣𝚎.𝚠𝚒𝚍𝚝𝚑/𝚜𝚛𝚌.𝚌𝚘𝚕𝚜\f]
+
+@param fy     scale factor along the vertical axis; when it equals 0, it is computed as
+\f[(𝚍𝚘𝚞𝚋𝚕𝚎)𝚍𝚜𝚒𝚣𝚎.𝚑𝚎𝚒𝚐𝚑𝚝/𝚜𝚛𝚌.𝚛𝚘𝚠𝚜\f]
+@param interpolation    interpolation method(see **cv.cann.InterpolationFlags**)
+@sa cv::resize
+*/
+
+//! interpolation algorithm
+enum InterpolationFlags
+{
+    /** nearest neighbor interpolation */
+    INTER_NEAREST = 0,
+    /** bilinear interpolation */
+    INTER_LINEAR = 1,
+    /** bicubic interpolation */
+    INTER_CUBIC = 2,
+    /** resampling using pixel area relation. It may be a preferred method for image decimation, as
+    it gives moire'-free results. But when the image is zoomed, it is similar to the INTER_NEAREST
+    method. */
+    INTER_AREA = 3,
+    /** mask for interpolation codes */
+    INTER_MAX = 7,
+};
+
+CV_EXPORTS_W void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x,
+                         double inv_scale_y, int interpolation,
+                         AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize, double inv_scale_x,
+                         double inv_scale_y, int interpolation,
                          AscendStream& stream = AscendStream::Null());
 //! @} cannops_core
 
@@ -322,7 +500,10 @@ channels is derived automatically from src and the code .
 
 @sa cv::cvtColor cv::cuda::cvtColor
  */
-CV_EXPORTS_W void cvtColor(InputArray src, OutputArray dst, int code, int dstCn = 0,
+CV_EXPORTS_W void cvtColor(const InputArray src, OutputArray dst, int code, int dstCn = 0,
+                           AscendStream& stream = AscendStream::Null());
+/** @overload */
+CV_EXPORTS_W void cvtColor(const AscendMat& src, CV_OUT AscendMat& dst, int code, int dstCn = 0,
                            AscendStream& stream = AscendStream::Null());
 
 //! @} cannimgproc

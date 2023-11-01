@@ -15,6 +15,8 @@ inline AscendMat::AscendMat(AscendMat::Allocator* allocator_)
     : flags(0), rows(0), cols(0), step(0), datastart(0), dataend(0),
       allocator(allocator_)
 {
+    // Empty mat is also continuous.
+    flags |= Mat::CONTINUOUS_FLAG;
 }
 
 inline AscendMat::AscendMat(int rows_, int cols_, int type_, AscendMat::Allocator* allocator_)

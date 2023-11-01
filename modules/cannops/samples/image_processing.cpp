@@ -7,13 +7,12 @@
 #include <opencv2/cann.hpp>
 #include <opencv2/cann_interface.hpp>
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     cv::CommandLineParser parser(argc, argv,
                                  "{@input|puppy.png|path to input image}"
                                  "{@output|output.png|path to output image}"
-                                 "{help||show help}"
-                                 );
+                                 "{help||show help}");
     parser.about("This is a sample for image processing with Ascend NPU. \n");
     if (argc != 3 || parser.has("help"))
     {
@@ -28,12 +27,12 @@ int main(int argc, char *argv[])
     //! [input_noise]
     cv::Mat img = cv::imread(imagePath);
     // Generate gauss noise that will be added into the input image
-    cv::Mat gaussNoise(img.rows, img.cols,img.type());
-	cv::RNG rng;
-	rng.fill(gaussNoise, cv::RNG::NORMAL, 0, 25);
+    cv::Mat gaussNoise(img.rows, img.cols, img.type());
+    cv::RNG rng;
+    rng.fill(gaussNoise, cv::RNG::NORMAL, 0, 25);
     //! [input_noise]
 
-    //setup cann
+    // setup cann
     //! [setup]
     cv::cann::initAcl();
     cv::cann::setDevice(0);
@@ -43,9 +42,11 @@ int main(int argc, char *argv[])
     cv::Mat output;
     // add gauss noise to the image
     cv::cann::add(img, gaussNoise, output);
-    // rotate the image with a certain mode (0, 1 and 2, correspond to rotation of 90, 180 and 270 degrees clockwise respectively)
+    // rotate the image with a certain mode (0, 1 and 2, correspond to rotation of 90, 180 and 270
+    // degrees clockwise respectively)
     cv::cann::rotate(output, output, 0);
-    // flip the image with a certain mode (0, positive and negative number, correspond to flipping around the x-axis, y-axis and both axes respectively)
+    // flip the image with a certain mode (0, positive and negative number, correspond to flipping
+    // around the x-axis, y-axis and both axes respectively)
     cv::cann::flip(output, output, 0);
     //! [image-process]
 

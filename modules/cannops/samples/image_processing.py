@@ -27,9 +27,11 @@ cv2.cann.setDevice(0)
 #! [image-process]
 # add gauss noise to the image
 output = cv2.cann.add(img, gaussNoise)
-# rotate the image with a certain mode (0, 1 and 2, correspond to rotation of 90, 180 and 270 degrees clockwise respectively)
+# rotate the image with a certain mode (0, 1 and 2, correspond to rotation of 90, 180
+# and 270 degrees clockwise respectively)
 output = cv2.cann.rotate(output, 0)
-# flip the image with a certain mode (0, positive and negative number, correspond to flipping around the x-axis, y-axis and both axes respectively)
+# flip the image with a certain mode (0, positive and negative number, correspond to flipping
+# around the x-axis, y-axis and both axes respectively)
 output = cv2.cann.flip(output, 0)
 #! [image-process]
 

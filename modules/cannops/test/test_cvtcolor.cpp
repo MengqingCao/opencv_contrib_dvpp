@@ -68,5 +68,22 @@ TEST(CVT_COLOR, YUV2RGB) { cvtColorTest(COLOR_YUV2RGB, 3, 3, 10.0f); }
 TEST(CVT_COLOR, YUV2BGR_DC4) { cvtColorTest(COLOR_YUV2BGR, 3, 4, 10.0f); }
 TEST(CVT_COLOR, YUV2RGB_DC4) { cvtColorTest(COLOR_YUV2RGB, 3, 4, 10.0f); }
 
+// Test of AscendMat. Since the logic is the same, only interface test is needed.
+TEST(CVT_COLOR, COLOR_BGR2BGRA_ASCENDMAT)
+{
+    cv::cann::setDevice(DEVICE_ID);
+    Mat cpuRet, npuRet;
+
+    Mat img8U = randomMat(512, 512, CV_8UC3, 0.0f, 255.0f);
+    cv::cvtColor(img8U, cpuRet, COLOR_BGR2BGRA, 4);
+
+    AscendMat npuImg8U, npuChecker;
+    npuImg8U.upload(img8U);
+    cv::cann::cvtColor(npuImg8U, npuChecker, COLOR_BGR2BGRA, 4);
+    npuChecker.download(npuRet);
+    EXPECT_MAT_NEAR(cpuRet, npuRet, 10.0f);
+    cv::cann::resetDevice();
+}
+
 } // namespace
 } // namespace opencv_test

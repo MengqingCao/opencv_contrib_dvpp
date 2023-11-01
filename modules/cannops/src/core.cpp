@@ -8,16 +8,7 @@ namespace cv
 {
 namespace cann
 {
-static inline aclFormat getAclFormat(const char* type)
-{
-    if (strcmp(type, "NCHW") == 0)
-        return ACL_FORMAT_NCHW;
-    else if (strcmp(type, "NHWC") == 0)
-        return ACL_FORMAT_NHWC;
-    else
-        CV_Error(Error::StsBadArg, "Unknown/unsupported matrix format");
-}
-
+// Transform data type from one to another. eg. from NCHW to NHWC.
 void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
                AscendStream& stream)
 {
@@ -39,12 +30,17 @@ void merge(const AscendMat* src, size_t n, AscendMat& dst, AscendStream& stream)
     int rows = src->rows;
     int cols = src->cols;
 
-    // all matrix must have same size and type
+    // All matrix must have same size and type
     for (size_t i = 1; i < n; i++)
     {
         CV_Assert(src[i].depth() == depth && src[i].channels() == 1);
         CV_Assert(src[i].rows == rows && src[i].cols == cols);
     }
+
+    int cns = 0;
+    for (size_t i = 0; i < n; i++)
+        cns += src[i].channels();
+    dst.create(src->rows, src->cols, CV_MAKE_TYPE(src->depth(), cns));
 
     OperatorRunner runner;
     runner.setOp("ConcatD");
@@ -57,18 +53,18 @@ void merge(const AscendMat* src, size_t n, AscendMat& dst, AscendStream& stream)
     runner.addOutput(dst, "output_data").addAttr(3, "concat_dim").run(stream);
 }
 
-void merge(const AscendMat* src, size_t n, OutputArray _dst, AscendStream& stream)
+void merge(const std::vector<AscendMat>& src, AscendMat& dst, AscendStream& stream)
 {
-    int cns = 0;
-    for (size_t i = 0; i < n; i++)
-        cns += src[i].channels();
-    AscendMat dst =
-        getOutputMat(_dst, src->rows, src->cols, CV_MAKE_TYPE(src->depth(), cns), stream);
-    merge(src, n, dst, stream);
-    syncOutput(dst, _dst, stream);
+    merge(&src[0], src.size(), dst, stream);
 }
 
-void merge(const std::vector<AscendMat>& src, OutputArray dst, AscendStream& stream)
+void merge(const AscendMat* src, size_t n, OutputArray& _dst, AscendStream& stream)
+{
+    AscendMat dst;
+    merge(src, n, dst, stream);
+    dst.download(_dst, stream);
+}
+void merge(const std::vector<AscendMat>& src, OutputArray& dst, AscendStream& stream)
 {
     merge(&src[0], src.size(), dst, stream);
 }
@@ -90,15 +86,22 @@ void split(const AscendMat& src, AscendMat* dst, AscendStream& stream)
     runner.addAttr(3, "split_dim").addAttr(cn, "num_split").run(stream);
 }
 
-void split(InputArray _src, AscendMat* dst, AscendStream& stream)
+void split(const AscendMat& src, std::vector<AscendMat>& dst, AscendStream& stream)
 {
-    AscendMat src = getInputMat(_src, stream);
-    split(src, dst, stream);
+    dst.resize(src.channels());
+    split(src, &dst[0], stream);
 }
 
-void split(InputArray _src, std::vector<AscendMat>& dst, AscendStream& stream)
+void split(const InputArray _src, AscendMat* dst, AscendStream& stream)
 {
-    AscendMat src = getInputMat(_src, stream);
+    AscendMat src;
+    src.upload(_src, stream);
+    split(src, dst, stream);
+}
+void split(const InputArray _src, std::vector<AscendMat>& dst, AscendStream& stream)
+{
+    AscendMat src;
+    src.upload(_src, stream);
     dst.resize(src.channels());
     split(_src, &dst[0], stream);
 }
@@ -113,15 +116,19 @@ void transpose(const AscendMat& src, int64_t* perm, AscendMat& dst, AscendStream
         .run(stream);
 }
 
+void transpose(const AscendMat& src, AscendMat& dst, AscendStream& stream)
+{
+    int64_t perm[] = {0, 2, 1, 3};
+    dst.create(src.cols, src.rows, src.type());
+    transpose(src, perm, dst, stream);
+}
+
 void transpose(InputArray _src, OutputArray _dst, AscendStream& stream)
 {
-    AscendMat src = getInputMat(_src, stream);
-
-    AscendMat dst = getOutputMat(_dst, src.cols, src.rows, src.type(), stream);
-
-    int64_t perm[] = {0, 2, 1, 3};
-    transpose(src, perm, dst, stream);
-    syncOutput(dst, _dst, stream);
+    AscendMat src, dst;
+    src.upload(_src, stream);
+    transpose(src, dst, stream);
+    dst.download(_dst, stream);
 }
 
 void flip(const AscendMat& src, std::vector<int32_t>& asixs, AscendMat& dst, AscendStream& stream)
@@ -135,11 +142,8 @@ void flip(const AscendMat& src, std::vector<int32_t>& asixs, AscendMat& dst, Asc
         .run(stream);
 }
 
-void flip(InputArray _src, OutputArray _dst, int flipCode, AscendStream& stream)
+void flip(const AscendMat& src, AscendMat& dst, int flipCode, AscendStream& stream)
 {
-    AscendMat src = getInputMat(_src, stream);
-    AscendMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
-
     std::vector<int32_t> asix;
     if (flipCode == 0)
         asix.push_back(1);
@@ -150,39 +154,156 @@ void flip(InputArray _src, OutputArray _dst, int flipCode, AscendStream& stream)
         asix.push_back(1);
         asix.push_back(2);
     }
+    dst.create(src.rows, src.cols, src.type());
     flip(src, asix, dst, stream);
-    syncOutput(dst, _dst, stream);
 }
 
-void rotate(InputArray _src, OutputArray _dst, int rotateMode, AscendStream& stream)
+void flip(const InputArray _src, OutputArray _dst, int flipCode, AscendStream& stream)
 {
-    AscendMat src = getInputMat(_src, stream), dst, tempMat;
+    AscendMat src, dst;
+    src.upload(_src, stream);
+    flip(src, dst, flipCode, stream);
+    dst.download(_dst, stream);
+}
+
+void rotate(const AscendMat& src, AscendMat& dst, int rotateMode, AscendStream& stream)
+{
+    AscendMat tempMat;
     switch (rotateMode)
     {
         case ROTATE_90_CLOCKWISE:
         {
-            dst = getOutputMat(_dst, src.cols, src.rows, src.type(), stream);
+            dst.create(src.cols, src.rows, src.type());
             transpose(src, tempMat, stream);
             flip(tempMat, dst, 1, stream);
             break;
         }
         case ROTATE_180:
         {
-            dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
+            dst.create(src.rows, src.cols, src.type());
             flip(src, dst, -1, stream);
             break;
         }
         case ROTATE_90_COUNTERCLOCKWISE:
         {
-            dst = getOutputMat(_dst, src.cols, src.rows, src.type(), stream);
-            transpose(_src, tempMat, stream);
+            dst.create(src.cols, src.rows, src.type());
+            transpose(src, tempMat, stream);
             flip(tempMat, dst, 0, stream);
             break;
         }
         default:
             break;
     }
-    syncOutput(dst, _dst, stream);
+}
+
+void rotate(InputArray _src, OutputArray _dst, int rotateMode, AscendStream& stream)
+{
+    AscendMat src, dst;
+    src.upload(_src, stream);
+    rotate(src, dst, rotateMode, stream);
+    dst.download(_dst, stream);
+}
+
+void crop(const AscendMat& src, AscendMat& dst, const AscendMat& sizeSrcNpu, int64_t* offset,
+          AscendStream& stream)
+{
+    OperatorRunner runner;
+    runner.setOp("Crop")
+        .addInput(src, "x")
+        .addInput(sizeSrcNpu, "size")
+        .addAttr(1, "axis")
+        .addAttr(offset, 3, "offsets")
+        .addOutput(dst, "y")
+        .run(stream);
+}
+
+AscendMat crop(const AscendMat& src, const Rect& rect, AscendStream& stream)
+{
+    AscendMat dst, sizeSrcNpu;
+    // left-up conner
+    int x = rect.x, y = rect.y, width = rect.width, height = rect.height;
+    int64_t offset[] = {y, x, 0};
+
+    CV_Assert(x + width <= src.cols && y + height <= src.rows);
+    int size1[] = {1, src.channels(), height, width};
+    dst.create(height, width, src.type());
+
+    Mat sizeSrc(height, width, src.type(), size1);
+    sizeSrcNpu.upload(sizeSrc);
+    crop(src, dst, sizeSrcNpu, offset, stream);
+
+    return dst;
+}
+AscendMat crop(InputArray _src, const Rect& rect, AscendStream& stream)
+{
+    AscendMat src;
+    src.upload(_src, stream);
+    return crop(src, rect, stream);
+}
+
+void resize(const AscendMat& src, AscendMat& dst, int32_t* dstSize, int interpolation,
+            AscendStream& stream)
+{
+    OperatorRunner runner;
+    int64_t dims[] = {2};
+    char const* mode;
+    switch (interpolation)
+    {
+        case INTER_CUBIC:
+            mode = "ResizeBicubic";
+            break;
+        case INTER_AREA:
+            mode = "ResizeArea";
+            break;
+        default:
+            break;
+    }
+
+    runner.setOp(mode)
+        .addInput(src, "images")
+        .addInput<int32_t>(dstSize, dims, 1, ACL_INT32, "size")
+        .addAttr(true, "half_pixel_centers")
+        .addOutput(dst, "y")
+        .run(stream);
+}
+
+void resize(const AscendMat& src, AscendMat& dst, Size dsize, double inv_scale_x,
+            double inv_scale_y, int interpolation, AscendStream& stream)
+{
+    Size ssize = src.size();
+    CV_Assert(!ssize.empty());
+    float_t scaleX = (float_t)inv_scale_x;
+    float_t scaleY = (float_t)inv_scale_y;
+    CV_Assert(interpolation == INTER_CUBIC || interpolation == INTER_AREA);
+
+    if (dsize.empty())
+    {
+        CV_Assert(scaleX > 0);
+        CV_Assert(scaleY > 0);
+        dsize = Size(saturate_cast<int>(ssize.width * inv_scale_x),
+                     saturate_cast<int>(ssize.height * inv_scale_y));
+        CV_Assert(!dsize.empty());
+    }
+    else
+    {
+        scaleX = (float_t)dsize.width / ssize.width;
+        scaleY = (float_t)dsize.height / ssize.height;
+        CV_Assert(scaleX > 0);
+        CV_Assert(scaleY > 0);
+    }
+
+    int32_t dstSize[] = {dsize.width, dsize.height};
+    dst.create(dstSize[0], dstSize[1], src.type());
+    resize(src, dst, dstSize, interpolation, stream);
+}
+
+void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x, double inv_scale_y,
+            int interpolation, AscendStream& stream)
+{
+    AscendMat src, dst;
+    src.upload(_src, stream);
+    resize(src, dst, dsize, inv_scale_x, inv_scale_y, interpolation, stream);
+    dst.download(_dst, stream);
 }
 
 } // namespace cann

@@ -17,6 +17,8 @@ namespace cv
 {
 namespace cann
 {
+// Warpper for functions in CANN, callers should not call CANN's api directly, but should call the
+// function provided in cann_call.
 void aclrtMallocWarpper(void** data, size_t size);
 void aclrtFreeWarpper(void* data);
 void aclrtMemcpyWarpper(std::shared_ptr<uchar>& dst, size_t offset, const void* src, size_t size,
@@ -34,21 +36,35 @@ void aclrtMemcpy2dWarpper(void* dst, size_t dpitch, const std::shared_ptr<uchar>
                           AscendStream& stream);
 void aclrtMemsetWarpper(std::shared_ptr<uchar>& ptr, int32_t value, size_t count,
                         AscendStream& stream);
+//! Type mapping between opencv and cann.
 aclDataType getACLType(int opencvdepth);
+//! Malloc and upload raw data to devices.
 std::shared_ptr<uchar> mallocAndUpload(const void* data, size_t size, AscendStream& stream,
                                        AscendMat::Allocator* allocator);
-
+/**
+ * @brief Warpper of CANN streams.
+ */
 class AscendStream::Impl
 {
 public:
     aclrtStream stream;
     bool ownStream;
+    /**
+     * @brief Ascend and CANN use stream to implement asynchronous calls. Which means when function
+     * returns, operator may not finish, even not start. If caller free any tensors that participate
+     * in this operatation, it have a chance to access invalid memory.
+     * All tensors should add to holder, holder will be cleaned by waitForCompletion function, or when
+     * the stream is destructing.
+     */
     std::set<std::shared_ptr<uchar>> tensorHolders;
     Impl();
     explicit Impl(aclrtStream stream);
     void AddTensorHolder(const std::shared_ptr<uchar>& tensorData);
 };
 
+/**
+ * @brief Warpper of CANN event.
+ */
 class AscendEvent::Impl
 {
 public:
@@ -60,6 +76,9 @@ public:
     ~Impl();
 };
 
+/**
+ * @brief Parameter type for call_call interfaces.
+ */
 struct AscendTensor
 {
     const char* name;
@@ -79,6 +98,9 @@ struct AscendTensor
                  aclFormat format = ACL_FORMAT_ND);
 };
 
+/**
+ * @brief Interface to call operators in CANN package.
+ */
 class OperatorRunner
 {
 private:

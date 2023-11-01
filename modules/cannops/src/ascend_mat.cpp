@@ -45,8 +45,8 @@ void AscendMat::setDefaultAllocator(AscendMat::Allocator* allocator)
     g_defaultAllocator = allocator;
 }
 
-// TODO: this function is copied from matrix.cpp, which is a local symbol there and can be
-// refreneced.
+// TODO: this function is copied from matrix.cpp, which is a local symbol there and can not 
+// be refreneced, consider optimizing.
 static int updateContinuityFlag(int flags, int dims, const int* size, const size_t* step)
 {
     int i, j;
@@ -152,7 +152,8 @@ AscendMat::AscendMat(InputArray _m, const Rect& roi) : AscendMat(_m, roi, Ascend
 AscendMat::AscendMat(InputArray _m, const Rect& roi, AscendStream& stream)
     : rows(roi.height), cols(roi.width), allocator(defaultAllocator())
 {
-    AscendMat m = getInputMat(_m, stream);
+    AscendMat m;
+    m.upload(_m, stream);
     step = m.step;
     data = m.data;
     flags = m.flags;
@@ -226,59 +227,6 @@ void AscendMat::convertTo(AscendMat& dst, AscendStream& stream) const
         .addOutput(dst, "y")
         .addAttr((int32_t)(getACLType(dst.depth())), "dst_type")
         .run(stream);
-}
-
-static AscendMat getAscendMat(InputArray arr)
-{
-    _InputArray::KindFlag k = arr.kind();
-    if (k == _InputArray::ASCEND_MAT)
-    {
-        const cann::AscendMat* n_mat = (const cann::AscendMat*)arr.getObj();
-        return *n_mat;
-    }
-
-    if (k == _InputArray::NONE)
-        return cann::AscendMat();
-
-    CV_Error(cv::Error::StsNotImplemented, "getAscendMat is available only for cann::AscendMat");
-}
-
-AscendMat getInputMat(InputArray _src, AscendStream& stream)
-{
-    AscendMat src;
-    if (_src.kind() == _InputArray::ASCEND_MAT)
-    {
-        src = getAscendMat(_src);
-    }
-    else if (!_src.empty())
-    {
-        src.upload(_src, stream);
-    }
-    return src;
-}
-
-AscendMat getOutputMat(OutputArray _dst, int rows, int cols, int type, AscendStream& stream)
-{
-    CV_UNUSED(stream);
-    AscendMat dst;
-    if (_dst.kind() == _InputArray::ASCEND_MAT)
-    {
-        ((cann::AscendMat*)(_dst.getObj()))->create(rows, cols, type);
-        dst = getAscendMat(_dst);
-    }
-    else
-    {
-        dst.create(rows, cols, type);
-    }
-    return dst;
-}
-
-void syncOutput(const AscendMat& dst, OutputArray _dst, AscendStream& stream)
-{
-    if (_dst.kind() != _InputArray::ASCEND_MAT)
-    {
-        dst.download(_dst, stream);
-    }
 }
 } // namespace cann
 } // namespace cv

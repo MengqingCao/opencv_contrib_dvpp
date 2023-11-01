@@ -8,7 +8,7 @@ namespace cv
 namespace cann
 {
 
-static inline void applyMask(const AscendMat& src, AscendMat& dst, AscendMat& mask,
+static inline void applyMask(const AscendMat& src, AscendMat& dst, const AscendMat& mask,
                              AscendStream& stream)
 {
     int mtype = mask.type();
@@ -37,8 +37,13 @@ static inline void applyScale(const AscendMat& src, AscendMat& dst, float scale,
 void arithm_op(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const char* op,
                AscendStream& stream)
 {
-    OperatorRunner runner;
-    runner.setOp(op).addInput(src1, "x1").addInput(src2, "x2").addOutput(dst, "y").run(stream);
+    if (src2.empty())
+        arithm_op(src1, dst, op, stream);
+    else
+    {
+        OperatorRunner runner;
+        runner.setOp(op).addInput(src1, "x1").addInput(src2, "x2").addOutput(dst, "y").run(stream);
+    }
 }
 
 void arithm_op(const AscendMat& src, const Scalar& sc, AscendMat& dst, const char* op,
@@ -76,59 +81,67 @@ void arithm_op(const AscendMat& src, float scalar, AscendMat& dst, const char* o
     runner.setOp(op).addInput(src, "x").addAttr(scalar, "value").addOutput(dst, "y").run(stream);
 }
 
-static void arithm_op(InputArray _src1, InputArray _src2, OutputArray _dst, InputArray _mask,
-                      float scale, int dtype, const char* op, AscendStream& stream)
+// Helper function for template arithm_op. all function called in template arithm_op should be
+// done in both AscendMat and Scalar.
+static void getInputInfo(const AscendMat& src, int& depth, int& cn, Size& size)
 {
-    const bool isScalar1 = (_src1.kind() == _InputArray::MATX);
-    const bool isScalar2 = (_src2.kind() == _InputArray::MATX);
+    depth = src.depth();
+    cn = src.channels();
+    size = src.size();
+}
 
-    if (isScalar1 && isScalar2)
-        CV_Error(Error::StsBadArg, "At list one matrix parameter shoule be passwd.");
+static void getInputInfo(const Scalar& src, int& depth, int& cn, Size& size)
+{
+    CV_UNUSED(src);
+    depth = -1;
+    cn = -1;
+    size = {-1, -1};
+}
 
-    AscendMat src1, src2;
-    Mat scalar;
+static void convert(const AscendMat& src, AscendMat& dst, AscendStream& stream)
+{
+    src.convertTo(dst, CV_32F, stream);
+}
 
-    if (!isScalar1)
-        src1 = getInputMat(_src1, stream);
-    if (!isScalar2)
-        src2 = getInputMat(_src2, stream);
+static void convert(const Scalar& src, Scalar& dst, AscendStream& stream)
+{
+    CV_UNUSED(stream);
+    dst = src;
+}
 
-    if (isScalar1)
-        scalar = _src1.getMat();
-    else if (isScalar2)
-        scalar = _src2.getMat();
+template <typename T1, typename T2>
+static void arithm_op(const T1& src1, const T2& src2, AscendMat& dst, const AscendMat& mask, float scale,
+                      int dtype, const char* op, AscendStream& stream)
+{
+    T1 castedSrc1;
+    T2 castedSrc2;
+    AscendMat castedRet;
 
-    const int sdepth = src1.empty() ? src2.depth() : src1.depth();
-    const int cn = src1.empty() ? src2.channels() : src1.channels();
-    const Size size = src1.empty() ? src2.size() : src1.size();
+    int sdepth1, sdepth2, scn1, scn2;
+    Size ssize1, ssize2;
+    getInputInfo(src1, sdepth1, scn1, ssize1);
+    getInputInfo(src2, sdepth2, scn2, ssize2);
+
+    int sdepth = sdepth1 == -1 ? sdepth2 : sdepth1;
+    int cn = scn1 == -1 ? scn2 : scn1;
+    Size size = sdepth1 == -1 ? ssize2 : ssize1;
+
+    if (sdepth1 != -1 && sdepth2 != -1 && !ssize1.empty() && !ssize2.empty())
+        CV_Assert(sdepth1 == sdepth2 && scn1 == scn2 && ssize1 == ssize2);
 
     if (dtype < 0)
         dtype = sdepth;
-
     const int ddepth = CV_MAT_DEPTH(dtype);
     CV_Assert(sdepth <= CV_16F && ddepth <= CV_16F);
-    CV_Assert(!scalar.empty() || src2.empty() ||
-              (src2.depth() == src1.depth() && src2.size() == src1.size()));
 
-    Scalar val;
+    dst.create(size.height, size.width, CV_MAKE_TYPE(ddepth, cn));
 
-    if (!scalar.empty())
-    {
-        CV_Assert(scalar.total() <= 4);
-        scalar.convertTo(Mat_<double>(scalar.rows, scalar.cols, &val[0]), CV_64F);
-    }
-
-    AscendMat dst = getOutputMat(_dst, size.height, size.width, CV_MAKE_TYPE(ddepth, cn), stream);
-
-    AscendMat castedSrc1, castedSrc2, castedRet;
+    // In order to achieve high accuracy, convert integers to float for calculation.
     if (scale != 1 && dtype < CV_32F)
     {
+        convert(src1, castedSrc1, stream);
+        convert(src2, castedSrc2, stream);
         castedRet.create(size.height, size.width, CV_MAKE_TYPE(CV_32F, cn));
-        if (!isScalar1)
-            src1.convertTo(castedSrc1, CV_32F, stream);
-
-        if (!isScalar2)
-            src2.convertTo(castedSrc2, CV_32F, stream);
     }
     else
     {
@@ -137,89 +150,258 @@ static void arithm_op(InputArray _src1, InputArray _src2, OutputArray _dst, Inpu
         castedRet = dst;
     }
 
+    // step1, calculate operator.
     OperatorRunner runner;
-    if (isScalar1)
-        arithm_op(val, castedSrc2, castedRet, op, stream);
-    else if (isScalar2)
-        arithm_op(castedSrc1, val, castedRet, op, stream);
-    else
-    {
-        if (src2.empty())
-            arithm_op(castedSrc1, castedRet, op, stream);
-        else
-            arithm_op(castedSrc1, castedSrc2, castedRet, op, stream);
-    }
+    arithm_op(castedSrc1, castedSrc2, castedRet, op, stream);
 
-    AscendMat mask = getInputMat(_mask, stream);
+    // step2, apply mask if need.
     if (!mask.empty())
         applyMask(castedRet, castedRet, mask, stream);
 
+    // step3, apply scale if need.
     if (scale != 1)
         applyScale(castedRet, castedRet, scale, stream);
 
+    // After rounding the result, convert the type to the original type.
     if (castedRet.depth() != dst.depth())
     {
         runner.setOp("Round").addInput(castedRet, "x").addOutput(castedRet, "y").run(stream);
         castedRet.convertTo(dst, stream);
     }
-
-    syncOutput(dst, _dst, stream);
 }
 
-void add(InputArray src1, InputArray src2, OutputArray dst, InputArray mask, int dtype,
+static void arithm_op(const InputArray _src1, const InputArray _src2, OutputArray _dst, const InputArray _mask,
+                      float scale, int dtype, const char* op, AscendStream& stream)
+{
+    const bool isScalar1 = (_src1.kind() == _InputArray::MATX);
+    const bool isScalar2 = (_src2.kind() == _InputArray::MATX);
+
+    if (isScalar1 && isScalar2)
+        CV_Error(Error::StsBadArg, "At list one matrix parameter shoule be passwd.");
+
+    AscendMat src1, src2, dst, mask;
+    Mat scalar;
+
+    if (!isScalar1 && !_src1.empty())
+        src1.upload(_src1, stream);
+    if (!isScalar2 && !_src2.empty())
+        src2.upload(_src2, stream);
+
+    if (!_mask.empty())
+        mask.upload(_mask, stream);
+
+    Scalar val;
+    if (isScalar1)
+        scalar = _src1.getMat();
+    else if (isScalar2)
+        scalar = _src2.getMat();
+
+    if (!scalar.empty())
+    {
+        CV_Assert(scalar.total() <= 4);
+        scalar.convertTo(Mat_<double>(scalar.rows, scalar.cols, &val[0]), CV_64F);
+    }
+
+    if (isScalar1)
+        arithm_op(val, src2, dst, mask, scale, dtype, op, stream);
+    else if (isScalar2)
+        arithm_op(src1, val, dst, mask, scale, dtype, op, stream);
+    else
+        arithm_op(src1, src2, dst, mask, scale, dtype, op, stream);
+
+    dst.download(_dst, stream);
+}
+
+// In order to supply more interfaces, differnet function declaration shoule be done.
+void add(const InputArray src1, const InputArray src2, OutputArray dst, const InputArray mask, int dtype,
          AscendStream& stream)
 {
     arithm_op(src1, src2, dst, mask, 1, dtype, "Add", stream);
 }
 
-void subtract(InputArray src1, InputArray src2, OutputArray dst, InputArray mask, int dtype,
+void add(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask, int dtype,
+         AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, dtype, "Add", stream);
+}
+
+void add(const AscendMat& src1, const Scalar& src2, AscendMat& dst, const AscendMat& mask, int dtype,
+         AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, dtype, "Add", stream);
+}
+
+void add(const Scalar& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask, int dtype,
+         AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, dtype, "Add", stream);
+}
+
+
+void subtract(const InputArray src1, const InputArray src2, OutputArray dst, const InputArray mask, int dtype,
               AscendStream& stream)
 {
     arithm_op(src1, src2, dst, mask, 1, dtype, "Sub", stream);
 }
 
-void multiply(InputArray src1, InputArray src2, OutputArray dst, float scale, int dtype,
+void subtract(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask, int dtype,
+              AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, dtype, "Sub", stream);
+}
+
+void subtract(const AscendMat& src1, const Scalar& src2, AscendMat& dst, const AscendMat& mask, int dtype,
+              AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, dtype, "Sub", stream);
+}
+
+void subtract(const Scalar& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask, int dtype,
+              AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, dtype, "Sub", stream);
+}
+
+
+void multiply(const InputArray src1, const InputArray src2, OutputArray dst, float scale, int dtype,
               AscendStream& stream)
 {
     arithm_op(src1, src2, dst, noArray(), scale, dtype, "Mul", stream);
 }
 
-void divide(InputArray src1, InputArray src2, OutputArray dst, float scale, int dtype,
+void multiply(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, float scale, int dtype,
+              AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, AscendMat(), scale, dtype, "Mul", stream);
+}
+
+void multiply(const AscendMat& src1, const Scalar& src2, AscendMat& dst, float scale, int dtype,
+              AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, AscendMat(), scale, dtype, "Mul", stream);
+}
+
+void multiply(const Scalar& src1, const AscendMat& src2, AscendMat& dst, float scale, int dtype,
+              AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, AscendMat(), scale, dtype, "Mul", stream);
+}
+
+
+void divide(const InputArray src1, const InputArray src2, OutputArray dst, float scale, int dtype,
             AscendStream& stream)
 {
     arithm_op(src1, src2, dst, noArray(), scale, dtype, "RealDiv", stream);
 }
 
-void bitwise_and(InputArray src1, InputArray src2, OutputArray dst, InputArray mask,
+void divide(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, float scale, int dtype,
+            AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, AscendMat(), scale, dtype, "RealDiv", stream);
+}
+
+void divide(const AscendMat& src1, const Scalar& src2, AscendMat& dst, float scale, int dtype,
+            AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, AscendMat(), scale, dtype, "RealDiv", stream);
+}
+
+void divide(const Scalar& src1, const AscendMat& src2, AscendMat& dst, float scale, int dtype,
+            AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, AscendMat(), scale, dtype, "RealDiv", stream);
+}
+
+
+void bitwise_and(const InputArray src1, const InputArray src2, OutputArray dst, const InputArray mask,
                  AscendStream& stream)
 {
     arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseAnd", stream);
 }
 
-void bitwise_or(InputArray src1, InputArray src2, OutputArray dst, InputArray mask,
+void bitwise_and(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask,
+                 AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseAnd", stream);
+}
+
+void bitwise_and(const AscendMat& src1, const Scalar& src2, AscendMat& dst, const AscendMat& mask,
+                 AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseAnd", stream);
+}
+
+void bitwise_and(const Scalar& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask,
+                 AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseAnd", stream);
+}
+
+
+void bitwise_or(const InputArray src1, const InputArray src2, OutputArray dst, const InputArray mask,
                 AscendStream& stream)
 {
     arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseOr", stream);
 }
 
-void bitwise_xor(InputArray src1, InputArray src2, OutputArray dst, InputArray mask,
+void bitwise_or(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask,
+                AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseOr", stream);
+}
+
+void bitwise_or(const AscendMat& src1, const Scalar& src2, AscendMat& dst, const AscendMat& mask,
+                AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseOr", stream);
+}
+
+void bitwise_or(const Scalar& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask,
+                AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseOr", stream);
+}
+
+
+void bitwise_xor(const InputArray src1, const InputArray src2, OutputArray dst, const InputArray mask,
                  AscendStream& stream)
 {
     arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseXor", stream);
 }
 
-void bitwise_not(InputArray src, OutputArray dst, InputArray mask, AscendStream& stream)
+void bitwise_xor(const AscendMat& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask,
+                 AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseXor", stream);
+}
+
+void bitwise_xor(const AscendMat& src1, const Scalar& src2, AscendMat& dst, const AscendMat& mask,
+                 AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseXor", stream);
+}
+
+void bitwise_xor(const Scalar& src1, const AscendMat& src2, AscendMat& dst, const AscendMat& mask,
+                 AscendStream& stream)
+{
+    arithm_op(src1, src2, dst, mask, 1, -1, "BitwiseXor", stream);
+}
+
+
+void bitwise_not(const InputArray src, OutputArray dst, const InputArray mask, AscendStream& stream)
 {
     arithm_op(src, noArray(), dst, mask, 1, -1, "Invert", stream);
 }
 
-void addWeighted(InputArray _src1, double alpha, InputArray _src2, double beta, double gamma,
-                 OutputArray _dst, int dtype, AscendStream& stream)
+void bitwise_not(const AscendMat& src, AscendMat& dst, const AscendMat& mask, AscendStream& stream)
 {
-    AscendMat src1, src2;
-    src1 = getInputMat(_src1, stream);
-    src2 = getInputMat(_src2, stream);
+    arithm_op(src, AscendMat(), dst, mask, 1, -1, "Invert", stream);
+}
 
+
+void addWeighted(const AscendMat& src1, double alpha, const AscendMat& src2, double beta, double gamma,
+                 AscendMat& dst, int dtype, AscendStream& stream)
+{
     if (dtype < 0)
         dtype = src1.depth();
 
@@ -227,9 +409,9 @@ void addWeighted(InputArray _src1, double alpha, InputArray _src2, double beta, 
               src1.channels() == src2.channels());
 
     int type = CV_MAKE_TYPE(dtype, src1.channels());
-    AscendMat dst = getOutputMat(_dst, src1.rows, src1.cols, type, stream);
+    dst.create(src1.rows, src1.cols, type);
 
-    // TODO Consider overflow, should extend type or not?
+    // TODO: Consider overflow, should extend type or not?
     AscendMat src1Weighted(src1.size(), type), src2Weighted(src1.size(), type),
         srcWeightedSumRet(src1.size(), type);
 
@@ -237,11 +419,19 @@ void addWeighted(InputArray _src1, double alpha, InputArray _src2, double beta, 
     arithm_op(src2, (float)beta, src2Weighted, "Muls", stream);
     arithm_op(src1Weighted, src2Weighted, srcWeightedSumRet, "Add", stream);
     arithm_op(srcWeightedSumRet, (float)gamma, dst, "Adds", stream);
-
-    syncOutput(dst, _dst, stream);
 }
 
-double threshold(AscendMat& src, AscendMat& dst, double thresh, double maxval, int type,
+void addWeighted(const InputArray _src1, double alpha, const InputArray _src2, double beta, double gamma,
+                 OutputArray _dst, int dtype, AscendStream& stream)
+{
+    AscendMat src1, src2, dst;
+    src1.upload(_src1, stream);
+    src2.upload(_src2, stream);
+    addWeighted(src1, alpha, src2, beta, gamma, dst, dtype, stream);
+    dst.download(_dst, stream);
+}
+
+double threshold(const AscendMat& src, AscendMat& dst, double thresh, double maxval, int type,
                  AscendStream& stream)
 {
     // ThresholdTypes is defined in opencv2/imgproc, This type is the only Symbol we need.
@@ -249,6 +439,8 @@ double threshold(AscendMat& src, AscendMat& dst, double thresh, double maxval, i
     CV_Assert(type <= 4 /*THRESH_TOZERO_INV*/);
 
     AscendMat threshMat(src.size(), src.type());
+
+    dst.create(src.rows, src.cols, src.type());
 
     OperatorRunner runner;
     runner.setOp("Threshold")
@@ -287,18 +479,19 @@ double threshold(AscendMat& src, AscendMat& dst, double thresh, double maxval, i
         else if (type == 3) /* THRESH_TOZERO = 3 */
             arithm_op(threshMat, src, dst, "Mul", stream);
         else
-            CV_Error(Error::AscendApiCallError, "Unknown/unsupported threshold type");
+            CV_Error(Error::StsError, "Unknown/unsupported threshold type");
     }
     return thresh;
 }
 
-double threshold(InputArray _src, OutputArray _dst, double thresh, double maxval, int type,
+double threshold(const InputArray _src, OutputArray _dst, double thresh, double maxval, int type,
                  AscendStream& stream)
 {
-    AscendMat src = getInputMat(_src, stream);
-    AscendMat dst = getOutputMat(_dst, src.rows, src.cols, src.type(), stream);
+    AscendMat src, dst;
+    src.upload(_src, stream);
+    dst.create(src.rows, src.cols, src.type());
     double ret = threshold(src, dst, thresh, maxval, type, stream);
-    syncOutput(dst, _dst, stream);
+    dst.download(_dst, stream);
     return ret;
 }
 

@@ -19,15 +19,14 @@ void arithm_op(const Scalar& sc, const AscendMat& src, AscendMat& dst, const cha
 void arithm_op(const AscendMat& src, AscendMat& dst, const char* op, AscendStream& stream);
 void arithm_op(const AscendMat& src, float scalar, AscendMat& dst, const char* op,
                AscendStream& stream);
-void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
-               AscendStream& stream);
 void transpose(const AscendMat& src, int64_t* perm, AscendMat& dst, AscendStream& stream);
 void flip(const AscendMat& src, std::vector<int32_t>& asixs, AscendMat& dst, AscendStream& stream);
-void merge(const AscendMat* src, size_t n, AscendMat& dst, AscendStream& stream);
-void split(const AscendMat& src, AscendMat* dst, AscendStream& stream);
-
-double threshold(AscendMat& src, AscendMat& dst, double thresh, double maxval, int type,
-                 AscendStream& stream);
+void crop(const AscendMat& src, AscendMat& dst, const AscendMat& sizeSrcNpu, int64_t* offset,
+          AscendStream& stream);
+void transData(const AscendMat& src, AscendMat& dst, const char* from, const char* to,
+               AscendStream& stream);
+void resize(const AscendMat& src, AscendMat& dst, int32_t* dstSize, int interpolation,
+            AscendStream& stream);
 } // namespace cann
 } // namespace cv
 

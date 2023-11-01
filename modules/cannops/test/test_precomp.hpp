@@ -23,5 +23,6 @@ Scalar randomScalar();
 float randomNum();
 int randomInterger();
 Mat genMask();
+AscendMat genNpuMask();
 
 #endif //__OPENCV_TEST_PRECOMP_HPP__

@@ -18,7 +18,7 @@ namespace
            COLOR_YUV2RGB)
 #define CVT_COLORS_1 Values(COLOR_GRAY2BGR, COLOR_GRAY2BGRA)
 #define TYPICAL_ASCEND_MAT_SIZES \
-    Values(::perf::sz1080p, ::perf::sz2K, ::perf::sz2160p, ::perf::sz4320p)
+    Values(::perf::sz1080p, ::perf::sz2K)
 #define DEF_PARAM_TEST(name, ...) \
     typedef ::perf::TestBaseWithParam<testing::tuple<__VA_ARGS__>> name
 
