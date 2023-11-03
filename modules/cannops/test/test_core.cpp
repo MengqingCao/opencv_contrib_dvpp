@@ -144,7 +144,7 @@ TEST(CORE, ROTATE)
         cv::cann::rotate(cpuMat, checker, rotateMode);
         EXPECT_MAT_NEAR(cpuRetMat, checker, 0.0);
     }
-    
+
     AscendMat npuMat, npuChecker;
     npuMat.upload(cpuMat);
     for (rotateMode = 0; rotateMode < 3; rotateMode++)

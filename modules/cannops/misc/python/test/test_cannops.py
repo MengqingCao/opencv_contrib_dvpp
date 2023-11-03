@@ -190,7 +190,7 @@ class cannop_test(NewOpenCVTests):
         aclMat = cv.cann.AscendMat()
         aclMatDst = aclMat
         aclMat.upload(npMat)
-        
+
         # TODO try pass out param, not use return value.
         # merge & split
         self.assertTrue(np.allclose(

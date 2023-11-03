@@ -45,7 +45,7 @@ void AscendMat::setDefaultAllocator(AscendMat::Allocator* allocator)
     g_defaultAllocator = allocator;
 }
 
-// TODO: this function is copied from matrix.cpp, which is a local symbol there and can not 
+// TODO: this function is copied from matrix.cpp, which is a local symbol there and can not
 // be refreneced, consider optimizing.
 static int updateContinuityFlag(int flags, int dims, const int* size, const size_t* step)
 {
