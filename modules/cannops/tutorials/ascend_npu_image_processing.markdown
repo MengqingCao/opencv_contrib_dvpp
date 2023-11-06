@@ -96,19 +96,19 @@ Results
 
 1. The original RGB input image with dimensions of (480, 640, 3):
 
-   ![puppy](./puppy.png)
+   ![puppy](./puppy.jpg)
 
 2. After introducing Gaussian noise, we obtain the following result:
 
-   ![puppy_noisy](./puppy_noisy.png)
+   ![puppy_noisy](./puppy_noisy.jpg)
 
 3. When applying the rotate operation with a rotation code of 0 (90 degrees clockwise), we obtain this result:
 
-   ![puppy_noisy_rotate](./puppy_noisy_rotate.png)
+   ![puppy_noisy_rotate](./puppy_noisy_rotate.jpg)
 
 4. Upon applying the flip operation with a flip code of 0 (flipping around the x-axis), we achieve the final result:
 
-   ![puppy_processed_normalized](./puppy_processed.png)
+   ![puppy_processed_normalized](./puppy_processed.jpg)
 
 
 
