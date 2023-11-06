@@ -212,6 +212,18 @@ TEST(CORE, RESIZE)
     cv::cann::resetDevice();
 }
 
+TEST(CORE, RESIZE_DVPP)
+{
+    Mat resized_cv, checker, cpuMat = randomMat(256, 256, CV_8UC3, 100.0, 255.0);
+    Size dsize = Size(64, 64);
+    cv::resize(cpuMat, resized_cv, dsize, 0, 0, 1);
+    cv::cann::resizedvpp(cpuMat, checker, dsize, 0, 0, 0);
+    EXPECT_MAT_NEAR(resized_cv, checker, 1e-10);
+
+    cv::resize(cpuMat, resized_cv, Size(), 0.5, 0.5, 1);
+    cv::cann::resizedvpp(cpuMat, checker, Size(), 0.5, 0.5, 0);
+    EXPECT_MAT_NEAR(resized_cv, checker, 1e-10);
+}
 
 } // namespace
 } // namespace opencv_test

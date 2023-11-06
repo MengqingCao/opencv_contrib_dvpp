@@ -350,7 +350,7 @@ CV_EXPORTS_W double threshold(const AscendMat& src, CV_OUT AscendMat& dst, doubl
 @sa cv::merge cv::cuda::merge
  */
 CV_EXPORTS_W void merge(const AscendMat* src, size_t n, CV_OUT AscendMat& dst,
-                      AscendStream& stream = AscendStream::Null());
+                        AscendStream& stream = AscendStream::Null());
 /** @overload */
 CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, CV_OUT AscendMat& dst,
                         AscendStream& stream = AscendStream::Null());
@@ -370,7 +370,7 @@ CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, OutputArray& dst,
 @sa cv::split cv::cuda::split
  */
 CV_EXPORTS_W void split(const AscendMat& src, AscendMat* dst,
-                      AscendStream& stream = AscendStream::Null());
+                        AscendStream& stream = AscendStream::Null());
 /** @overload */
 CV_EXPORTS_W void split(const AscendMat& src, CV_OUT std::vector<AscendMat>& dst,
                         AscendStream& stream = AscendStream::Null());
@@ -481,10 +481,14 @@ CV_EXPORTS_W void resize(InputArray _src, OutputArray _dst, Size dsize, double i
                          double inv_scale_y, int interpolation,
                          AscendStream& stream = AscendStream::Null());
 /** @overload */
-CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize, double inv_scale_x,
-                         double inv_scale_y, int interpolation,
+CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize,
+                         double inv_scale_x, double inv_scale_y, int interpolation,
                          AscendStream& stream = AscendStream::Null());
 
+CV_EXPORTS_W void resizedvpp(AscendMat& src, CV_OUT AscendMat& dst, int32_t* dstSize,
+                             int interpolation, AscendStream& stream);
+CV_EXPORTS_W void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x,
+                             double inv_scale_y, int interpolation, AscendStream& stream);
 //! @} cannops_core
 
 //! @addtogroup cannimgproc
