@@ -485,10 +485,12 @@ CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize
                          double inv_scale_x, double inv_scale_y, int interpolation,
                          AscendStream& stream = AscendStream::Null());
 
-CV_EXPORTS_W void resizedvpp(AscendMat& src, CV_OUT AscendMat& dst, int32_t* dstSize,
-                             int interpolation, AscendStream& stream);
+CV_EXPORTS_W void resizedvpp(AscendMat& src, AscendMat& dst, Size dsize, double inv_scale_x,
+                             double inv_scale_y, int interpolation,
+                             AscendStream& stream = AscendStream::Null());
 CV_EXPORTS_W void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x,
-                             double inv_scale_y, int interpolation, AscendStream& stream);
+                             double inv_scale_y, int interpolation,
+                             AscendStream& stream = AscendStream::Null());
 //! @} cannops_core
 
 //! @addtogroup cannimgproc
@@ -510,6 +512,8 @@ CV_EXPORTS_W void cvtColor(const InputArray src, OutputArray dst, int code, int 
 /** @overload */
 CV_EXPORTS_W void cvtColor(const AscendMat& src, CV_OUT AscendMat& dst, int code, int dstCn = 0,
                            AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void cvtColordvpp(const InputArray src, OutputArray dst, int code, int dcn = 0,
+                               AscendStream& stream = AscendStream::Null());
 
 //! @} cannimgproc
 

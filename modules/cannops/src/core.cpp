@@ -306,37 +306,39 @@ void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x, d
     dst.download(_dst, stream);
 }
 
-void resizedvpp(AscendMat& src, AscendMat& dst, int32_t* dstSize, int interpolation,
-                AscendStream& stream)
-{
-    DvppOperatorRunner op;
-    op.Init();
-    op.chnId = 0;
-    op.stChnAttr = {};
-    op.createChannel();
 
-    // BGR alignment
-    op.widthAlignment = 16;
-    op.heightAlignment = 1;
-    op.sizeAlignment = 3;
-    op.sizeNum = 3;
+// void resizedvpp(AscendMat& src, AscendMat& dst, Size dsize, double inv_scale_x, double inv_scale_y,
+//                 int interpolation, AscendStream& stream)
+// {
+//     int32_t dstSize[] = {dsize.width, dsize.height};
+//     DvppOperatorRunner op;
+//     op.Init();
+//     op.chnId = 0;
+//     op.stChnAttr = {};
+//     op.createChannel();
 
-    uint32_t taskID = 0;
-    int32_t sizeIn[] = {src.rows, src.cols};
-    op.setPic(sizeIn, &op.inputPic);
-    op.setPic(dstSize, &op.outputPic);
+//     // BGR alignment
+//     op.widthAlignment = 16;
+//     op.heightAlignment = 1;
+//     op.sizeAlignment = 3;
+//     op.sizeNum = 3;
 
-    op.addInput(src);
-    op.addOutput(dst);
-    uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID, -1);
+//     uint32_t taskID = 0;
+//     int32_t sizeIn[] = {src.rows, src.cols};
+//     op.setPic(sizeIn, &op.inputPic);
+//     op.setPic(dstSize, &op.outputPic);
 
-    uint32_t taskIDResult = taskID;
-    ret = hi_mpi_vpc_get_process_result(op.chnId, taskIDResult, -1);
-    uint32_t size = dst.rows * dst.cols * dst.elemSize();
-    aclrtMemcpy(dst.data.get(), size, op.outputPic.picture_address, size,
-                ACL_MEMCPY_DEVICE_TO_DEVICE);
-    op.reset();
-}
+//     op.addInput(src);
+//     op.addOutput(dst);
+//     uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID, -1);
+
+//     uint32_t taskIDResult = taskID;
+//     ret = hi_mpi_vpc_get_process_result(op.chnId, taskIDResult, -1);
+//     uint32_t size = dst.rows * dst.cols * dst.elemSize();
+//     aclrtMemcpy(dst.data.get(), size, op.outputPic.picture_address, size,
+//                 ACL_MEMCPY_DEVICE_TO_DEVICE);
+//     op.reset();
+// }
 
 void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x,
                 double inv_scale_y, int interpolation, AscendStream& stream)
@@ -387,12 +389,13 @@ void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_
 
     uint32_t taskID = 0;
     int32_t sizeIn[] = {src.rows, src.cols};
+    op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
     op.setPic(sizeIn, &op.inputPic);
     op.setPic(dstSize, &op.outputPic);
     op.addInput(src);
     op.addOutput(dst);
     uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID, -1);
-    hi_mpi_vpc_convert_color(op.chnId, &op.inputPic, &op.outputPic, &taskID, -1);
 
     uint32_t taskIDResult = taskID;
     op.getResult(dst, taskIDResult);

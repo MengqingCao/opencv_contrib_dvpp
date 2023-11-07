@@ -65,6 +65,7 @@ public:
         hi_mpi_sys_init();
         inputPic.picture_address = nullptr;
         outputPic.picture_address = nullptr;
+        return *this;
     }
     DvppOperatorRunner& setPic(int32_t* size, hi_vpc_pic_info* Pic);
     uint32_t AlignmentHelper(uint32_t origSize, uint32_t alignment);

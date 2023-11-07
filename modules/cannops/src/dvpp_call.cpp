@@ -81,7 +81,7 @@ DvppOperatorRunner& DvppOperatorRunner::setPic(int32_t* size, hi_vpc_pic_info* P
     // set input
     Pic->picture_width = size[0];
     Pic->picture_height = size[1];
-    Pic->picture_format = HI_PIXEL_FORMAT_BGR_888;
+    Pic->picture_format = Pic->picture_format;
     Pic->picture_width_stride = ALIGN_UP(size[0], widthAlignment) * sizeAlignment;
     Pic->picture_height_stride = ALIGN_UP(size[1], heightAlignment);
 }
