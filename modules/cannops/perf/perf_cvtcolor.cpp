@@ -25,25 +25,25 @@ namespace
 DEF_PARAM_TEST(NPU, Size, ColorConversionCodes);
 DEF_PARAM_TEST(CPU, Size, ColorConversionCodes);
 
-// PERF_TEST_P(NPU, CVT_COLOR_3, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_3))
-// {
-//     Mat mat(GET_PARAM(0), CV_32FC3);
-//     Mat dst;
-//     declare.in(mat, WARMUP_RNG);
-//     cv::cann::setDevice(DEVICE_ID);
-//     TEST_CYCLE() { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
-//     cv::cann::resetDevice();
-//     SANITY_CHECK_NOTHING();
-// }
+PERF_TEST_P(NPU, CVT_COLOR_3, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_3))
+{
+    Mat mat(GET_PARAM(0), CV_32FC3);
+    Mat dst;
+    declare.in(mat, WARMUP_RNG);
+    cv::cann::setDevice(DEVICE_ID);
+    TEST_CYCLE_N(10) { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
+    cv::cann::resetDevice();
+    SANITY_CHECK_NOTHING();
+}
 
-// PERF_TEST_P(CPU, CVT_COLOR_3, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_3))
-// {
-//     Mat mat(GET_PARAM(0), CV_32FC3);
-//     Mat dst;
-//     declare.in(mat, WARMUP_RNG);
-//     TEST_CYCLE() { cv::cvtColor(mat, dst, GET_PARAM(1)); }
-//     SANITY_CHECK_NOTHING();
-// }
+PERF_TEST_P(CPU, CVT_COLOR_3, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_3))
+{
+    Mat mat(GET_PARAM(0), CV_32FC3);
+    Mat dst;
+    declare.in(mat, WARMUP_RNG);
+    TEST_CYCLE_N(10) { cv::cvtColor(mat, dst, GET_PARAM(1)); }
+    SANITY_CHECK_NOTHING();
+}
 
 PERF_TEST_P(NPU, CVT_COLOR_1, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_1))
 {
@@ -51,7 +51,7 @@ PERF_TEST_P(NPU, CVT_COLOR_1, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COL
     Mat dst;
     declare.in(mat, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE() { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
+    TEST_CYCLE_N(10) { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -61,7 +61,7 @@ PERF_TEST_P(CPU, CVT_COLOR_1, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COL
     Mat mat(GET_PARAM(0), CV_32FC1);
     Mat dst;
     declare.in(mat, WARMUP_RNG);
-    TEST_CYCLE() { cv::cvtColor(mat, dst, GET_PARAM(1)); }
+    TEST_CYCLE_N(10) { cv::cvtColor(mat, dst, GET_PARAM(1)); }
     SANITY_CHECK_NOTHING();
 }
 

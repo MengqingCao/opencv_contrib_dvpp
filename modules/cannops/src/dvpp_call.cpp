@@ -42,6 +42,14 @@ static inline void checkAclPtr(void* ptr, const char* file, const int line, cons
         checkAclPtr(ptr, __FILE__, __LINE__, CV_Func); \
         ptr;                                           \
     })
+void printDVPPdata(const Mat mat, const hi_vpc_pic_info inputPic)
+{
+    Mat dst;
+    dst.create(mat.size(), mat.type());
+    aclrtMemcpy2d(dst.data, mat.step, inputPic.picture_address, mat.step, mat.cols * mat.elemSize(),
+                  mat.rows, ACL_MEMCPY_DEVICE_TO_HOST);
+    std::cout << dst << std::endl;
+}
 /******************************Acl Runtime Warpper****************************/
 void acldvppMallocWarpper(void** data, size_t size)
 {
@@ -159,7 +167,8 @@ DvppOperatorRunner& DvppOperatorRunner::addOutput(Mat& mat)
 DvppOperatorRunner& DvppOperatorRunner::getResult(Mat& dst, uint32_t& taskIDResult)
 {
     hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
-    aclrtMemcpy(dst.data, outputPic.picture_buffer_size, outputPic.picture_address, outputPic.picture_buffer_size, ACL_MEMCPY_DEVICE_TO_DEVICE);
+    aclrtMemcpy(dst.data, outputPic.picture_buffer_size, outputPic.picture_address,
+                outputPic.picture_buffer_size, ACL_MEMCPY_DEVICE_TO_DEVICE);
     return *this;
 }
 
