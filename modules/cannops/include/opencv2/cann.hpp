@@ -310,6 +310,7 @@ CV_EXPORTS_W int32_t getDevice();
  * @brief init AscendCL.
  */
 CV_EXPORTS_W void initAcl();
+CV_EXPORTS_W void initDvpp();
 
 /**
  * @brief finalize AscendCL.
@@ -317,6 +318,7 @@ CV_EXPORTS_W void initAcl();
  * options finished.
  */
 CV_EXPORTS_W void finalizeAcl();
+CV_EXPORTS_W void finalizeDvpp();
 
 //! @} cann_init
 

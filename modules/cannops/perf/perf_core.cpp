@@ -184,26 +184,22 @@ PERF_TEST_P(CPU, ROTATE, TYPICAL_ASCEND_MAT_SIZES)
     TEST_CYCLE_N(10) { cv::rotate(mat, dst, 1); }
     SANITY_CHECK_NOTHING();
 }
-PERF_TEST_P(NPU, CROP_DVPP1, TYPICAL_ASCEND_MAT_SIZES)
+PERF_TEST_P(NPU, CROP_DVPP1, DVPP_ASCEND_MAT_SIZES)
 {
     Mat mat(GET_PARAM(0), CV_8UC3);
     Mat dst;
     declare.in(mat, WARMUP_RNG);
     Rect b(1, 2, 64, 64);
-    cv::cann::setDevice(DEVICE_ID);
     TEST_CYCLE_N(10) { cv::cann::cropdvpp(mat, b); }
-    cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
-PERF_TEST_P(NPU, CROP_DVPP, TYPICAL_ASCEND_MAT_SIZES)
+PERF_TEST_P(NPU, CROP_DVPP, DVPP_ASCEND_MAT_SIZES)
 {
     Mat mat(GET_PARAM(0), CV_8UC3);
     Mat dst;
     declare.in(mat, WARMUP_RNG);
     Rect b(1, 2, 64, 64);
-    cv::cann::setDevice(DEVICE_ID);
     TEST_CYCLE_N(10) { cv::cann::cropdvpp(mat, b); }
-    cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
 PERF_TEST_P(NPU, CROP, TYPICAL_ASCEND_MAT_SIZES)
@@ -294,19 +290,17 @@ PERF_TEST_P(NPU, CROP_OVERLOAD_DVPP, DVPP_ASCEND_MAT_SIZES)
     SANITY_CHECK_NOTHING();
 }
 
-PERF_TEST_P(NPU, RESIZEDVPP1_WARMUP, TYPICAL_ASCEND_MAT_SIZES)
+PERF_TEST_P(NPU, RESIZEDVPP1_WARMUP, DVPP_ASCEND_MAT_SIZES)
 {
     Mat mat(GET_PARAM(0), CV_8UC3);
     Mat dst;
     declare.in(mat, WARMUP_RNG);
     Size dsize = Size(256, 256);
-    cv::cann::setDevice(DEVICE_ID);
     TEST_CYCLE_N(10) { cv::cann::resizedvpp(mat, dst, dsize, 0, 0, 0); }
-    cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
 
-PERF_TEST_P(NPU, RESIZEDVPP, TYPICAL_ASCEND_MAT_SIZES)
+PERF_TEST_P(NPU, RESIZEDVPP, DVPP_ASCEND_MAT_SIZES)
 {
     Mat mat(GET_PARAM(0), CV_8UC3);
     Mat dst;

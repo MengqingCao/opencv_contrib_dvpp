@@ -416,7 +416,8 @@ void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_
     op.addInput(src);
     op.addOutput(dst);
     uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID, -1);
-    // std::cout << "hi_mpi_vpc_resize : " << ret << std::endl;
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to resize image");
 
     uint32_t taskIDResult = taskID;
     op.getResult(dst, taskIDResult);
@@ -460,8 +461,8 @@ Mat cropdvpp(InputArray _src, const Rect& rect, AscendStream& stream)
     uint32_t cntCrop = 1;
 
     ret = hi_mpi_vpc_crop(op.chnId, &op.inputPic, cropInfos, cntCrop, &taskID, -1);
-    // std::cout << "hi_mpi_vpc_crop : " << ret << std::endl;
-    // 5.5 等待任务处理结束，任务处理结束后，输出图片数据在outputPic.picture_address指向的内存中
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to crop image");
     uint32_t taskIDResult = taskID;
     op.getResult(dst, taskIDResult);
 

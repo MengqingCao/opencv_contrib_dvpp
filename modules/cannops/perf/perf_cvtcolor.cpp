@@ -13,7 +13,7 @@ namespace
 //     Values(COLOR_BGR2BGRA, COLOR_BGRA2BGR, COLOR_BGR2RGBA, COLOR_RGBA2BGR, COLOR_BGR2RGB, \
 //            COLOR_BGR2YUV)
 #define CVT_COLORS_DVPP \
-    Values(COLOR_BGR2BGRA, COLOR_BGRA2BGR, COLOR_BGR2RGBA, COLOR_BGR2RGB, COLOR_BGR2GRAY, COLOR_RGB2GRAY)
+    Values(COLOR_BGR2BGRA, COLOR_BGR2RGBA, COLOR_BGR2RGB, COLOR_BGR2GRAY, COLOR_RGB2GRAY)
 
 #define CVT_COLORS_3                                                                         \
     Values(COLOR_BGR2BGRA, COLOR_BGR2RGBA, COLOR_BGR2RGB,    \
@@ -107,9 +107,7 @@ PERF_TEST_P(NPU, NPU_CVT_COLOR_DVPP_WARMUP,
     Mat mat(GET_PARAM(0), CV_8UC3);
     Mat dst;
     declare.in(mat, WARMUP_RNG);
-    cv::cann::setDevice(DEVICE_ID);
     TEST_CYCLE_N(10) { cv::cann::cvtColordvpp(mat, dst, GET_PARAM(1)); }
-    cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
 PERF_TEST_P(NPU, CVT_COLOR_DVPP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_DVPP))
@@ -117,9 +115,7 @@ PERF_TEST_P(NPU, CVT_COLOR_DVPP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_
     Mat mat(GET_PARAM(0), CV_8UC3);
     Mat dst;
     declare.in(mat, WARMUP_RNG);
-    // cv::cann::setDevice(DEVICE_ID);
     TEST_CYCLE_N(10) { cv::cann::cvtColordvpp(mat, dst, GET_PARAM(1)); }
-    // cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
 
@@ -128,9 +124,9 @@ PERF_TEST_P(NPU, CVT_COLOR_WARMUP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CV
     Mat mat(GET_PARAM(0), CV_8UC3);
     Mat dst;
     declare.in(mat, WARMUP_RNG);
-    // cv::cann::setDevice(DEVICE_ID);
+    cv::cann::setDevice(DEVICE_ID);
     TEST_CYCLE_N(10) { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
-    // cv::cann::resetDevice();
+    cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
 

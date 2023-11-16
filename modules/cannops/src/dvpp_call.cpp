@@ -81,16 +81,15 @@ DvppOperatorRunner& DvppOperatorRunner::reset()
         hi_mpi_dvpp_free(outputPic.picture_address);
         outputPic.picture_address = nullptr;
     }
-    if (ret == HI_SUCCESS)
-        hi_mpi_sys_exit();
     return *this;
 }
+void initDvpp() { hi_mpi_sys_init(); }
+
+void finalizeDvpp() { hi_mpi_sys_exit(); }
 
 DvppOperatorRunner& DvppOperatorRunner::createChannel()
 {
     uint32_t ret = hi_mpi_vpc_sys_create_chn(&chnId, &stChnAttr);
-    // std::cout << "hi_mpi_vpc_sys_create_chn " << ret << std::endl;
-
     return *this;
 }
 

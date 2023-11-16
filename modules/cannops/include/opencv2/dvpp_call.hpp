@@ -63,7 +63,6 @@ public:
 
     DvppOperatorRunner& Init()
     {
-        hi_mpi_sys_init();
         inputPic.picture_address = nullptr;
         outputPic.picture_address = nullptr;
         return *this;

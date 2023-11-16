@@ -30,14 +30,9 @@ void cvt(InputArray _src, OutputArray _dst, hi_pixel_format srcCode, hi_pixel_fo
     op.outputPic.picture_format = dstCode;
 
     op.setMemAlign(&op.inputPic).setPic(sizeIn, &op.inputPic).addInput(src);
-    // std::cout << "op.inputPic = " << op.inputPic.picture_buffer_size << std::endl;
-
     op.setMemAlign(&op.outputPic).setPic(sizeIn, &op.outputPic).addOutput(dst);
-    // std::cout << "op.outputPic = " << op.outputPic.picture_buffer_size << std::endl;
-
     uint32_t ret = hi_mpi_vpc_convert_color(op.chnId, &op.inputPic, &op.outputPic, &taskID, -1);
-    // std::cout << "ret = " << ret << std::endl;
-    if (ret != 0)
+    if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to convert color");
 
     uint32_t taskIDResult = taskID;
