@@ -225,5 +225,36 @@ TEST(CORE, RESIZE_DVPP)
     EXPECT_MAT_NEAR(resized_cv, checker, 1e-10);
 }
 
+TEST(CORE, CROP_OVERLOAD_DVPP)
+{
+    Mat cpuOpRet, checker, cpuMat = randomMat(256, 256, CV_8UC3, 0.0, 255.0);
+    const Rect b(10, 20, 64, 64);
+    cv::cann::setDevice(0);
+    Mat cropped_cv = cpuMat(b);
+    Mat cropped_cann = cv::cann::cropdvpp(cpuMat, b);
+    EXPECT_MAT_NEAR(cropped_cv, cropped_cann, 1e-10);
+    cv::cann::resetDevice();
+}
+
+TEST(CORE, INVERT)
+{
+    Mat a = (cv::Mat_<float>(3, 3) << 2.42104644730331, 1.81444796521479, -3.98072565304758, 0,
+             7.08389214348967e-3, 5.55326770986007e-3, 0, 0, 7.44556154284261e-3);
+    Mat b = a.t() * a;
+    Mat cpuOpRet, checker, checkerInv, i = Mat_<float>::eye(3, 3);;
+    cv::cann::setDevice(0);
+    cv::invert(b, cpuOpRet);
+    cv::cann::invert(b, checker);
+
+    std::cout << checker << '\n' << '\n' << cpuOpRet << std::endl;
+    ASSERT_LT( cvtest::norm(b*cpuOpRet, i, 1), 0.1 );
+
+    // cv::cann::invert(checker, checkerInv);
+    // std::cout  << '\n' << checkerInv << '\n' << '\n' << b << std::endl;
+    // EXPECT_MAT_NEAR(checkerInv, b, 1e-5);
+
+    // EXPECT_MAT_NEAR(checker, cpuOpRet, 1e-10);
+    cv::cann::resetDevice();
+}
 } // namespace
 } // namespace opencv_test

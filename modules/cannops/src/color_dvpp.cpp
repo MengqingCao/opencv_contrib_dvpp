@@ -3,18 +3,19 @@
 // of this distribution and at http://opencv.org/license.html.
 
 #include "precomp.hpp"
+#include <iostream>
 
 namespace cv
 {
 namespace cann
 {
-void cvt(InputArray _src, OutputArray _dst, hi_pixel_format srcCode, hi_pixel_format dstCode, AscendStream& stream)
+void cvt(InputArray _src, OutputArray _dst, hi_pixel_format srcCode, hi_pixel_format dstCode, uint32_t dcn)
 {
     Size ssize = _src.size();
     CV_Assert(!ssize.empty());
 
     Mat src = _src.getMat();
-    _dst.create(src.cols, src.rows, src.type());
+    _dst.create(src.rows, src.cols, CV_MAKE_TYPE(src.depth(), dcn));
     Mat dst = _dst.getMat();
 
     DvppOperatorRunner op;
@@ -23,85 +24,119 @@ void cvt(InputArray _src, OutputArray _dst, hi_pixel_format srcCode, hi_pixel_fo
     op.stChnAttr = {};
     op.createChannel();
 
-    // BGR alignment
-    op.widthAlignment = 16;
-    op.heightAlignment = 1;
-    op.sizeAlignment = 3;
-    op.sizeNum = 3;
-
     uint32_t taskID = 0;
     int32_t sizeIn[] = {src.rows, src.cols};
     op.inputPic.picture_format = srcCode;
     op.outputPic.picture_format = dstCode;
-    op.setPic(sizeIn, &op.inputPic);
-    op.setPic(sizeIn, &op.outputPic);
-    op.addInput(src);
-    op.addOutput(dst);
-    hi_mpi_vpc_convert_color(op.chnId, &op.inputPic, &op.outputPic, &taskID, -1);
+
+    op.setMemAlign(&op.inputPic).setPic(sizeIn, &op.inputPic).addInput(src);
+    // std::cout << "op.inputPic = " << op.inputPic.picture_buffer_size << std::endl;
+
+    op.setMemAlign(&op.outputPic).setPic(sizeIn, &op.outputPic).addOutput(dst);
+    // std::cout << "op.outputPic = " << op.outputPic.picture_buffer_size << std::endl;
+
+    uint32_t ret = hi_mpi_vpc_convert_color(op.chnId, &op.inputPic, &op.outputPic, &taskID, -1);
+    // std::cout << "ret = " << ret << std::endl;
+    if (ret != 0)
+        CV_Error(Error::StsBadFlag, "failed to convert color");
 
     uint32_t taskIDResult = taskID;
     op.getResult(dst, taskIDResult);
-    op.reset();
 }
 
 template <typename SRC, typename DST>
-inline void BGR2RGB(const SRC& src, DST& dst, AscendStream& stream)
+inline void BGR2RGB(const SRC& src, DST& dst, uint32_t dcn)
 {
-    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_RGB_888, stream);
+    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_RGB_888, dcn);
 }
-template <typename SRC, typename DST>
-inline void BGR2BGRA(const SRC& src, DST& dst, AscendStream& stream)
-{
-    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_BGRA_8888, stream);
-}
-template <typename SRC, typename DST>
-inline void BGRA2BGR(const SRC& src, DST& dst, AscendStream& stream)
-{
-    cvt(src, dst, HI_PIXEL_FORMAT_BGRA_8888, HI_PIXEL_FORMAT_BGR_888, stream);
-}
-template <typename SRC, typename DST>
-inline void BGR2RGBA(const SRC& src, DST& dst, AscendStream& stream)
-{
-    cvt(src, dst, HI_PIXEL_FORMAT_RGBA_8888, HI_PIXEL_FORMAT_BGR_888, stream);
-}
-template <typename SRC, typename DST>
-inline void RGBA2BGR(const SRC& src, DST& dst, AscendStream& stream)
-{
-    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_RGBA_8888, stream);
-}
-template <typename SRC, typename DST>
-inline void BGR2YUV(const SRC& src, DST& dst, AscendStream& stream)
-{
-    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_YUV_400, stream);
-}
-template <typename SRC, typename DST>
-inline void BGR2YCrCb(const SRC& src, DST& dst, AscendStream& stream)
-{
-    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_YVU_PACKED_444, stream);
-}
-template <typename SRC, typename DST>
-inline void RGB2YCrCb(const SRC& src, DST& dst, AscendStream& stream)
-{
-    cvt(src, dst, HI_PIXEL_FORMAT_RGB_888, HI_PIXEL_FORMAT_YVU_PACKED_444, stream);
-}
-template <typename SRC, typename DST>
-void cvtColorDo(const SRC& src, DST& dst, int code, int dcn, AscendStream& stream)
-{
-    typedef void (*func_t)(const SRC& src, DST& dst, AscendStream& stream);
-    static const func_t funcs[] = {
-        BGR2BGRA,  // CV_BGR2BGRA    =0
-        BGRA2BGR,  // CV_BGRA2BGR    =1
-        BGR2RGBA,  // CV_BGR2RGBA    =2
-        RGBA2BGR,  // CV_RGBA2BGR    =3
-        BGR2RGB, // CV_BGR2RGB     =4
-        // BGRA2RGBA, // CV_BGRA2RGBA   =5
 
-        // BGR2GRAY,  // CV_BGR2GRAY    =6
-        // RGB2GRAY,  // CV_RGB2GRAY    =7
-        // GRAY2BGR,  // CV_GRAY2BGR    =8
-        // GRAY2BGRA, // CV_GRAY2BGRA   =9
-        // BGRA2GRAY, // CV_BGRA2GRAY   =10
-        // RGBA2GRAY, // CV_RGBA2GRAY   =11
+template <typename SRC, typename DST>
+inline void BGR2GRAY(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_YUV_400, dcn);
+}
+template <typename SRC, typename DST>
+inline void GRAY2BGR(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_YUV_400, HI_PIXEL_FORMAT_BGR_888, dcn);
+}
+
+template <typename SRC, typename DST>
+inline void BGR2BGRA(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_BGRA_8888, dcn);
+}
+template <typename SRC, typename DST>
+inline void BGRA2BGR(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_BGRA_8888, HI_PIXEL_FORMAT_BGR_888, dcn);
+}
+template <typename SRC, typename DST>
+inline void GRAY2BGRA(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_YUV_400, HI_PIXEL_FORMAT_BGRA_8888, dcn);
+}
+template <typename SRC, typename DST>
+inline void BGRA2GRAY(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_BGRA_8888, HI_PIXEL_FORMAT_YUV_400, dcn);
+}
+
+template <typename SRC, typename DST>
+inline void BGR2RGBA(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_RGBA_8888, dcn);
+}
+template <typename SRC, typename DST>
+inline void RGBA2BGR(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_RGBA_8888, HI_PIXEL_FORMAT_BGR_888, dcn);
+}
+template <typename SRC, typename DST>
+inline void RGBA2GRAY(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_RGBA_8888, HI_PIXEL_FORMAT_YUV_400, dcn);
+}
+
+template <typename SRC, typename DST>
+inline void BGR2YUV(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_YUV_PACKED_444, dcn);
+}
+template <typename SRC, typename DST>
+inline void BGR2YCrCb(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_BGR_888, HI_PIXEL_FORMAT_YVU_SEMIPLANAR_444, dcn);
+}
+template <typename SRC, typename DST>
+inline void RGB2YCrCb(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_RGB_888, HI_PIXEL_FORMAT_YVU_SEMIPLANAR_444, dcn);
+}
+template <typename SRC, typename DST>
+inline void RGB2GRAY(const SRC& src, DST& dst, uint32_t dcn)
+{
+    cvt(src, dst, HI_PIXEL_FORMAT_RGB_888, HI_PIXEL_FORMAT_YUV_400, dcn);
+}
+
+template <typename SRC, typename DST>
+void cvtColorDo(const SRC& src, DST& dst, int code, uint32_t dcn)
+{
+    typedef void (*dvppFunc_t)(const SRC& src, DST& dst, uint32_t dcn);
+    static const dvppFunc_t funcs[] = {
+        BGR2BGRA, // CV_BGR2BGRA    =0
+        BGRA2BGR, // CV_BGRA2BGR    =1
+        BGR2RGBA, // CV_BGR2RGBA    =2
+        RGBA2BGR, // CV_RGBA2BGR    =3
+        BGR2RGB,  // CV_BGR2RGB     =4
+        0, // CV_BGRA2RGBA   =5
+
+        BGR2GRAY,  // CV_BGR2GRAY    =6
+        RGB2GRAY,  // CV_RGB2GRAY    =7
+        GRAY2BGR,  // CV_GRAY2BGR    =8
+        GRAY2BGRA, // CV_GRAY2BGRA   =9
+        BGRA2GRAY, // CV_BGRA2GRAY   =10
+        RGBA2GRAY, // CV_RGBA2GRAY   =11
 
         0, // CV_BGR2BGR565  =12
         0, // CV_RGB2BGR565  =13
@@ -127,15 +162,15 @@ void cvtColorDo(const SRC& src, DST& dst, int code, int dcn, AscendStream& strea
         0, // CV_GRAY2BGR555 =30
         0, // CV_BGR5552GRAY =31
 
-        // BGR2XYZ, // CV_BGR2XYZ     =32
-        // RGB2XYZ, // CV_RGB2XYZ     =33
-        // XYZ2BGR, // CV_XYZ2BGR     =34
-        // XYZ2RGB, // CV_XYZ2RGB     =35
+        0, // CV_BGR2XYZ     =32
+        0, // CV_RGB2XYZ     =33
+        0, // CV_XYZ2BGR     =34
+        0, // CV_XYZ2RGB     =35
 
         BGR2YCrCb, // CV_BGR2YCrCb   =36
         RGB2YCrCb, // CV_RGB2YCrCb   =37
-        // YCrCb2BGR, // CV_YCrCb2BGR   =38
-        // YCrCb2RGB, // CV_YCrCb2RGB   =39
+        0, // CV_YCrCb2BGR   =38
+        0, // CV_YCrCb2RGB   =39
 
         0, // CV_BGR2HSV     =40
         0, // CV_RGB2HSV     =41
@@ -194,9 +229,9 @@ void cvtColorDo(const SRC& src, DST& dst, int code, int dcn, AscendStream& strea
         0, // CV_Luv2LRGB     = 81
 
         BGR2YUV, // CV_BGR2YUV      = 82
-        // RGB2YUV, // CV_RGB2YUV      = 83
-        // YUV2BGR, // CV_YUV2BGR      = 84
-        // YUV2RGB, // CV_YUV2RGB      = 85
+        0, // CV_RGB2YUV      = 83
+        0, // CV_YUV2BGR      = 84
+        0, // CV_YUV2RGB      = 85
 
         0, // CV_BayerBG2GRAY = 86
         0, // CV_BayeRGB2GRAY = 87
@@ -259,18 +294,18 @@ void cvtColorDo(const SRC& src, DST& dst, int code, int dcn, AscendStream& strea
 
     CV_Assert(code < 128);
 
-    func_t func = funcs[code];
+    dvppFunc_t func = funcs[code];
 
     if (func == 0)
         CV_Error(Error::StsBadFlag, "Unknown/unsupported color conversion code");
 
-    func(src, dst, stream);
+    func(src, dst, dcn);
 }
 
 // Instantiate templates to avoid confusion in python code generation
-void cvtColordvpp(const InputArray src, OutputArray dst, int code, int dcn, AscendStream& stream)
+void cvtColordvpp(const InputArray src, OutputArray dst, int code, int dstCn, AscendStream& stream)
 {
-    cvtColorDo(src, dst, code, dcn, stream);
+    cvtColorDo(src, dst, code, dstCn);
 }
 
 } // namespace cann

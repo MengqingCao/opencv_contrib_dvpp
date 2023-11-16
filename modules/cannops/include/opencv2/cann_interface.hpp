@@ -444,6 +444,8 @@ CV_EXPORTS_W AscendMat crop(InputArray src, const Rect& rect,
 /** @overload */
 CV_EXPORTS_W AscendMat crop(const AscendMat& src, const Rect& rect,
                             AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W Mat cropdvpp(InputArray _src, const Rect& rect,
+                          AscendStream& stream = AscendStream::Null());
 /** @brief Resizes an image src down to or up to the specified size.
 @param src    input image
 @param dst    output image; it has the size dsize (when it is non-zero) or the size computed from
@@ -512,9 +514,11 @@ CV_EXPORTS_W void cvtColor(const InputArray src, OutputArray dst, int code, int 
 /** @overload */
 CV_EXPORTS_W void cvtColor(const AscendMat& src, CV_OUT AscendMat& dst, int code, int dstCn = 0,
                            AscendStream& stream = AscendStream::Null());
-CV_EXPORTS_W void cvtColordvpp(const InputArray src, OutputArray dst, int code, int dcn = 0,
+CV_EXPORTS_W void cvtColordvpp(const InputArray src, OutputArray dst, int code, int dstCn = 0,
                                AscendStream& stream = AscendStream::Null());
 
+CV_EXPORTS_W double invert(const InputArray src, OutputArray dst, int flags = DECOMP_LU,
+                           AscendStream& stream = AscendStream::Null());
 //! @} cannimgproc
 
 } // namespace cann

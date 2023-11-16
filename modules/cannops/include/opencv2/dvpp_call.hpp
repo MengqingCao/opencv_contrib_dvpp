@@ -51,14 +51,15 @@ public:
     DvppOperatorRunner& addInput(Mat& mat);
     DvppOperatorRunner& addOutput(Mat& mat);
     DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult);
+    DvppOperatorRunner& setMemAlign(hi_vpc_pic_info* Pic);
 
     DvppOperatorRunner& reset();
     DvppOperatorRunner& createChannel();
 
-    uint32_t widthAlignment;
-    uint32_t heightAlignment;
-    uint32_t sizeAlignment;
-    uint32_t sizeNum;
+    uint32_t widthAlignment = 1;
+    uint32_t heightAlignment = 1;
+    uint32_t sizeAlignment = 1;
+    uint32_t sizeNum = 1;
 
     DvppOperatorRunner& Init()
     {

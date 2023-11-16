@@ -307,8 +307,27 @@ void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x, d
     dst.download(_dst, stream);
 }
 
+double invert(const AscendMat& src, AscendMat& dst, int flags, AscendStream& stream)
+{
+    CV_Assert(src.type() == CV_32F || src.type() == CV_16F || src.type() == CV_32S);
+    CV_Assert(src.cols == src.rows);
+    dst.create(src.cols, src.rows, src.type());
+    OperatorRunner runner;
+    runner.setOp("Inv").addInput(src, "x").addOutput(dst, "y").run(stream);
+    return 1.0;
+}
 
-// void resizedvpp(AscendMat& src, AscendMat& dst, Size dsize, double inv_scale_x, double inv_scale_y,
+double invert(InputArray _src, OutputArray _dst, int flags, AscendStream& stream)
+{
+    AscendMat src, dst;
+    src.upload(_src, stream);
+    invert(src, dst, flags, stream);
+    dst.download(_dst, stream);
+    return 1.0;
+}
+
+// void resizedvpp(AscendMat& src, AscendMat& dst, Size dsize, double inv_scale_x, double
+// inv_scale_y,
 //                 int interpolation, AscendStream& stream)
 // {
 //     int32_t dstSize[] = {dsize.width, dsize.height};
@@ -331,14 +350,14 @@ void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x, d
 
 //     op.addInput(src);
 //     op.addOutput(dst);
-//     uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID, -1);
+//     uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID,
+//     -1);
 
 //     uint32_t taskIDResult = taskID;
 //     ret = hi_mpi_vpc_get_process_result(op.chnId, taskIDResult, -1);
 //     uint32_t size = dst.rows * dst.cols * dst.elemSize();
 //     aclrtMemcpy(dst.data.get(), size, op.outputPic.picture_address, size,
 //                 ACL_MEMCPY_DEVICE_TO_DEVICE);
-//     op.reset();
 // }
 
 void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x,
@@ -397,10 +416,57 @@ void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_
     op.addInput(src);
     op.addOutput(dst);
     uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID, -1);
+    // std::cout << "hi_mpi_vpc_resize : " << ret << std::endl;
 
     uint32_t taskIDResult = taskID;
     op.getResult(dst, taskIDResult);
-    op.reset();
 }
+
+Mat cropdvpp(InputArray _src, const Rect& rect, AscendStream& stream)
+{
+    uint32_t ret;
+    // left-up conner
+    uint32_t x = rect.x, y = rect.y, width = rect.width, height = rect.height;
+    Mat src = _src.getMat();
+    Mat dst;
+    dst.create(rect.width, rect.height, src.type());
+
+    DvppOperatorRunner op;
+    op.Init();
+    op.chnId = 0;
+    op.createChannel();
+
+    // BGR alignment
+    op.widthAlignment = 16;
+    op.heightAlignment = 1;
+    op.sizeAlignment = 3;
+    op.sizeNum = 1;
+    uint32_t taskID = 0;
+    int32_t sizeIn[] = {src.rows, src.cols};
+    int32_t dstSize[] = {height, width};
+
+    op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.setPic(sizeIn, &op.inputPic);
+    op.setPic(dstSize, &op.outputPic);
+    op.addInput(src);
+    op.addOutput(dst);
+
+    hi_vpc_crop_region cropRegion = {
+        .top_offset = y, .left_offset = x, .crop_width = width, .crop_height = height};
+    hi_vpc_crop_region_info cropInfo = {.dest_pic_info = op.outputPic, .crop_region = cropRegion};
+    hi_vpc_crop_region_info cropInfos[] = {cropInfo};
+
+    uint32_t cntCrop = 1;
+
+    ret = hi_mpi_vpc_crop(op.chnId, &op.inputPic, cropInfos, cntCrop, &taskID, -1);
+    // std::cout << "hi_mpi_vpc_crop : " << ret << std::endl;
+    // 5.5 等待任务处理结束，任务处理结束后，输出图片数据在outputPic.picture_address指向的内存中
+    uint32_t taskIDResult = taskID;
+    op.getResult(dst, taskIDResult);
+
+    return dst;
+}
+
 } // namespace cann
 } // namespace cv

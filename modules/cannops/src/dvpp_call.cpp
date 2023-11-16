@@ -42,6 +42,7 @@ static inline void checkAclPtr(void* ptr, const char* file, const int line, cons
         checkAclPtr(ptr, __FILE__, __LINE__, CV_Func); \
         ptr;                                           \
     })
+
 void printDVPPdata(const Mat mat, const hi_vpc_pic_info inputPic)
 {
     Mat dst;
@@ -69,10 +70,19 @@ uint32_t DvppOperatorRunner::AlignmentHelper(uint32_t origSize, uint32_t alignme
 }
 DvppOperatorRunner& DvppOperatorRunner::reset()
 {
-    hi_mpi_vpc_destroy_chn(chnId);
-    hi_mpi_dvpp_free(inputPic.picture_address);
-    hi_mpi_dvpp_free(outputPic.picture_address);
-    hi_mpi_sys_exit();
+    uint32_t ret = hi_mpi_vpc_destroy_chn(chnId);
+    if (inputPic.picture_address != nullptr)
+    {
+        hi_mpi_dvpp_free(inputPic.picture_address);
+        inputPic.picture_address = nullptr;
+    }
+    if (outputPic.picture_address != nullptr)
+    {
+        hi_mpi_dvpp_free(outputPic.picture_address);
+        outputPic.picture_address = nullptr;
+    }
+    if (ret == HI_SUCCESS)
+        hi_mpi_sys_exit();
     return *this;
 }
 
@@ -92,6 +102,38 @@ DvppOperatorRunner& DvppOperatorRunner::setPic(int32_t* size, hi_vpc_pic_info* P
     Pic->picture_format = Pic->picture_format;
     Pic->picture_width_stride = ALIGN_UP(size[0], widthAlignment) * sizeAlignment;
     Pic->picture_height_stride = ALIGN_UP(size[1], heightAlignment);
+    return *this;
+}
+
+DvppOperatorRunner& DvppOperatorRunner::setMemAlign(hi_vpc_pic_info* Pic)
+{
+    if (Pic->picture_format == HI_PIXEL_FORMAT_BGR_888 ||
+        Pic->picture_format == HI_PIXEL_FORMAT_RGB_888 ||
+        Pic->picture_format == HI_PIXEL_FORMAT_YUV_PACKED_444)
+    {
+        widthAlignment = 16;
+        heightAlignment = 1;
+        sizeAlignment = 3;
+        sizeNum = 3;
+    }
+    else if (Pic->picture_format == HI_PIXEL_FORMAT_YUV_400)
+    {
+        widthAlignment = 16;
+        heightAlignment = 1;
+        sizeAlignment = 1;
+        sizeNum = 1;
+    }
+    else if (Pic->picture_format == HI_PIXEL_FORMAT_ARGB_8888 ||
+             Pic->picture_format == HI_PIXEL_FORMAT_ABGR_8888 ||
+             Pic->picture_format == HI_PIXEL_FORMAT_RGBA_8888 ||
+             Pic->picture_format == HI_PIXEL_FORMAT_BGRA_8888)
+    {
+        widthAlignment = 16;
+        heightAlignment = 1;
+        sizeAlignment = 4;
+        sizeNum = 4;
+    }
+    return *this;
 }
 
 DvppOperatorRunner& DvppOperatorRunner::addInput(AscendTensor& tensor)
@@ -108,7 +150,7 @@ DvppOperatorRunner& DvppOperatorRunner::addInput(AscendTensor& tensor)
 
 DvppOperatorRunner& DvppOperatorRunner::addInput(AscendMat& mat)
 {
-    uint32_t size = mat.rows * mat.cols * mat.elemSize();
+    // uint32_t size = mat.rows * mat.cols * mat.elemSize();
     inputPic.picture_buffer_size =
         inputPic.picture_width_stride * inputPic.picture_height_stride * sizeAlignment / sizeNum;
 
@@ -117,15 +159,16 @@ DvppOperatorRunner& DvppOperatorRunner::addInput(AscendMat& mat)
                 inputPic.picture_buffer_size, ACL_MEMCPY_DEVICE_TO_DEVICE);
     return *this;
 }
+
 DvppOperatorRunner& DvppOperatorRunner::addInput(Mat& mat)
 {
-    uint32_t size = mat.rows * mat.cols * mat.elemSize();
+    // uint32_t size = mat.rows * mat.cols * mat.elemSize();
     inputPic.picture_buffer_size =
         inputPic.picture_width_stride * inputPic.picture_height_stride * sizeAlignment / sizeNum;
 
     uint32_t ret = hi_mpi_dvpp_malloc(0, &inputPic.picture_address, inputPic.picture_buffer_size);
     aclrtMemcpy(inputPic.picture_address, inputPic.picture_buffer_size, mat.data,
-                inputPic.picture_buffer_size, ACL_MEMCPY_DEVICE_TO_DEVICE);
+                inputPic.picture_buffer_size, ACL_MEMCPY_HOST_TO_DEVICE);
     return *this;
 }
 
@@ -144,7 +187,7 @@ DvppOperatorRunner& DvppOperatorRunner::addOutput(AscendTensor& tensor)
 
 DvppOperatorRunner& DvppOperatorRunner::addOutput(AscendMat& mat)
 {
-    outputPic.picture_address = mat.data.get();
+    // outputPic.picture_address = mat.data.get();
     outputPic.picture_buffer_size = mat.rows * mat.cols * mat.elemSize();
     uint32_t ret = hi_mpi_dvpp_malloc(0, &outputPic.picture_address, outputPic.picture_buffer_size);
 
@@ -155,10 +198,14 @@ DvppOperatorRunner& DvppOperatorRunner::addOutput(AscendMat& mat)
 
 DvppOperatorRunner& DvppOperatorRunner::addOutput(Mat& mat)
 {
-    outputPic.picture_address = mat.data;
+    // outputPic.picture_address = mat.data;
     outputPic.picture_buffer_size = mat.rows * mat.cols * mat.elemSize();
+    // outputPic.picture_buffer_size =
+    //     outputPic.picture_width_stride * outputPic.picture_height_stride * sizeAlignment /
+    //     sizeNum;
     uint32_t ret = hi_mpi_dvpp_malloc(0, &outputPic.picture_address, outputPic.picture_buffer_size);
-
+    // aclrtMemcpy(outputPic.picture_address, outputPic.picture_buffer_size, mat.data,
+    //             outputPic.picture_buffer_size, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemset(outputPic.picture_address, outputPic.picture_buffer_size, 0,
                 outputPic.picture_buffer_size);
     return *this;
@@ -168,7 +215,7 @@ DvppOperatorRunner& DvppOperatorRunner::getResult(Mat& dst, uint32_t& taskIDResu
 {
     hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
     aclrtMemcpy(dst.data, outputPic.picture_buffer_size, outputPic.picture_address,
-                outputPic.picture_buffer_size, ACL_MEMCPY_DEVICE_TO_DEVICE);
+                outputPic.picture_buffer_size, ACL_MEMCPY_DEVICE_TO_HOST);
     return *this;
 }
 
