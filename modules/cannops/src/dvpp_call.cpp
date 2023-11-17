@@ -139,17 +139,14 @@ DvppOperatorRunner& DvppOperatorRunner::addInput(AscendTensor& tensor)
 {
     inputPic.picture_buffer_size =
         inputPic.picture_width_stride * inputPic.picture_height_stride * sizeAlignment / sizeNum;
-    // inputPic.picture_buffer_size = tensor.dataSize;
     hi_mpi_dvpp_malloc(0, &inputPic.picture_address, inputPic.picture_buffer_size);
     aclrtMemcpy(inputPic.picture_address, tensor.dataSize, tensor.data.get(), tensor.dataSize,
                 ACL_MEMCPY_DEVICE_TO_DEVICE);
-
     return *this;
 }
 
 DvppOperatorRunner& DvppOperatorRunner::addInput(AscendMat& mat)
 {
-    // uint32_t size = mat.rows * mat.cols * mat.elemSize();
     inputPic.picture_buffer_size =
         inputPic.picture_width_stride * inputPic.picture_height_stride * sizeAlignment / sizeNum;
 
@@ -161,60 +158,54 @@ DvppOperatorRunner& DvppOperatorRunner::addInput(AscendMat& mat)
 
 DvppOperatorRunner& DvppOperatorRunner::addInput(Mat& mat)
 {
-    // uint32_t size = mat.rows * mat.cols * mat.elemSize();
     inputPic.picture_buffer_size =
         inputPic.picture_width_stride * inputPic.picture_height_stride * sizeAlignment / sizeNum;
-
+    const uint32_t esz = CV_ELEM_SIZE(mat.type());
+    size_t step = esz * mat.cols;
     uint32_t ret = hi_mpi_dvpp_malloc(0, &inputPic.picture_address, inputPic.picture_buffer_size);
-    aclrtMemcpy(inputPic.picture_address, inputPic.picture_buffer_size, mat.data,
-                inputPic.picture_buffer_size, ACL_MEMCPY_HOST_TO_DEVICE);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to malloc mem for input data");
+    aclrtMemcpy2d(inputPic.picture_address, step, mat.data, mat.step[0],
+                  inputPic.picture_width_stride, inputPic.picture_height_stride,
+                  ACL_MEMCPY_HOST_TO_DEVICE);
     return *this;
 }
 
 DvppOperatorRunner& DvppOperatorRunner::addOutput(AscendTensor& tensor)
 {
-    outputPic.picture_address = tensor.data.get();
     outputPic.picture_buffer_size =
         outputPic.picture_width_stride * outputPic.picture_height_stride * sizeAlignment / sizeNum;
     uint32_t ret = hi_mpi_dvpp_malloc(0, &outputPic.picture_address, outputPic.picture_buffer_size);
-
-    aclrtMemset(outputPic.picture_address, outputPic.picture_buffer_size, 0,
-                outputPic.picture_buffer_size);
-
     return *this;
 }
 
 DvppOperatorRunner& DvppOperatorRunner::addOutput(AscendMat& mat)
 {
-    // outputPic.picture_address = mat.data.get();
-    outputPic.picture_buffer_size = mat.rows * mat.cols * mat.elemSize();
+    outputPic.picture_buffer_size =
+        outputPic.picture_width_stride * outputPic.picture_height_stride * sizeAlignment / sizeNum;
     uint32_t ret = hi_mpi_dvpp_malloc(0, &outputPic.picture_address, outputPic.picture_buffer_size);
-
-    aclrtMemset(outputPic.picture_address, outputPic.picture_buffer_size, 0,
-                outputPic.picture_buffer_size);
     return *this;
 }
 
 DvppOperatorRunner& DvppOperatorRunner::addOutput(Mat& mat)
 {
-    // outputPic.picture_address = mat.data;
-    outputPic.picture_buffer_size = mat.rows * mat.cols * mat.elemSize();
-    // outputPic.picture_buffer_size =
-    //     outputPic.picture_width_stride * outputPic.picture_height_stride * sizeAlignment /
-    //     sizeNum;
+    outputPic.picture_buffer_size =
+        outputPic.picture_width_stride * outputPic.picture_height_stride * sizeAlignment / sizeNum;
     uint32_t ret = hi_mpi_dvpp_malloc(0, &outputPic.picture_address, outputPic.picture_buffer_size);
-    // aclrtMemcpy(outputPic.picture_address, outputPic.picture_buffer_size, mat.data,
-    //             outputPic.picture_buffer_size, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemset(outputPic.picture_address, outputPic.picture_buffer_size, 0,
-                outputPic.picture_buffer_size);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to malloc mem for output data");
+
     return *this;
 }
 
 DvppOperatorRunner& DvppOperatorRunner::getResult(Mat& dst, uint32_t& taskIDResult)
 {
     hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
-    aclrtMemcpy(dst.data, outputPic.picture_buffer_size, outputPic.picture_address,
-                outputPic.picture_buffer_size, ACL_MEMCPY_DEVICE_TO_HOST);
+    const uint32_t esz = CV_ELEM_SIZE(dst.type());
+    size_t step = esz * dst.cols;
+    aclrtMemcpy2d(dst.data, dst.step[0], outputPic.picture_address, step,
+                  outputPic.picture_width_stride, outputPic.picture_height_stride,
+                  ACL_MEMCPY_DEVICE_TO_HOST);
     return *this;
 }
 

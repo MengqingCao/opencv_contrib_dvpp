@@ -247,7 +247,7 @@ void resize(const AscendMat& src, AscendMat& dst, int32_t* dstSize, int interpol
 {
     OperatorRunner runner;
     int64_t dims[] = {2};
-    char const* mode;
+    char const* mode = "";
     switch (interpolation)
     {
         case INTER_CUBIC:

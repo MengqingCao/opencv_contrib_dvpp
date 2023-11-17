@@ -11,11 +11,13 @@ public:
     virtual void SetUp() CV_OVERRIDE
     {
         initAcl();
+        cv::cann::setDevice(DEVICE_ID);
         initDvpp();
     }
     virtual void TearDown() CV_OVERRIDE
     {
         finalizeAcl();
+        cv::cann::resetDevice();
         finalizeDvpp();
     }
 };
