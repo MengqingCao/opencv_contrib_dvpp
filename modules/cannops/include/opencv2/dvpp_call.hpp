@@ -51,6 +51,7 @@ public:
     DvppOperatorRunner& addInput(Mat& mat);
     DvppOperatorRunner& addOutput(Mat& mat);
     DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult);
+    DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult, hi_vpc_pic_info destPtr);
     DvppOperatorRunner& setMemAlign(hi_vpc_pic_info* Pic);
 
     DvppOperatorRunner& reset();

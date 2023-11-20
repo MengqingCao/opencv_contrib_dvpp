@@ -241,13 +241,13 @@ TEST(CORE, INVERT)
     Mat a = (cv::Mat_<float>(3, 3) << 2.42104644730331, 1.81444796521479, -3.98072565304758, 0,
              7.08389214348967e-3, 5.55326770986007e-3, 0, 0, 7.44556154284261e-3);
     Mat b = a.t() * a;
-    Mat cpuOpRet, checker, checkerInv, i = Mat_<float>::eye(3, 3);;
-    cv::cann::setDevice(0);
+    Mat cpuOpRet, checker, checkerInv, i = Mat_<float>::eye(3, 3);
+    cv::cann::setDevice(DEVICE_ID);
     cv::invert(b, cpuOpRet);
     cv::cann::invert(b, checker);
 
     std::cout << checker << '\n' << '\n' << cpuOpRet << std::endl;
-    ASSERT_LT( cvtest::norm(b*cpuOpRet, i, 1), 0.1 );
+    ASSERT_LT(cvtest::norm(b * checker, i, 1), 0.1);
 
     // cv::cann::invert(checker, checkerInv);
     // std::cout  << '\n' << checkerInv << '\n' << '\n' << b << std::endl;
@@ -256,5 +256,34 @@ TEST(CORE, INVERT)
     // EXPECT_MAT_NEAR(checker, cpuOpRet, 1e-10);
     cv::cann::resetDevice();
 }
+
+TEST(CORE, BATCH_CROP_RESIZE)
+{
+    cv::cann::setDevice(DEVICE_ID);
+
+    Mat resized_cv, checker, cpuOpRet, cpuMat = randomMat(256, 256, CV_8UC3, 100.0, 255.0);
+    Size dsize = Size(64, 64);
+    const Rect b(1, 2, 128, 128);
+    RNG rng(12345);
+    double scalarV[3] = {1, 1, 1};
+    int top, bottom, left, right;
+    top = (int)(0);
+    bottom = 0;
+    left = (int)(0);
+    right = 0;
+    int borderType = 0;
+    // HI_BORDER_CONSTANT = 0 BORDER_CONSTANT = 0
+
+    cv::cann::batchCropResizeMakeBorder(cpuMat, checker, b, dsize, 0, 0, 0, borderType, scalarV, top, left);
+
+    Mat cropped_cv(cpuMat, b);
+    cv::resize(cropped_cv, resized_cv, dsize, 0, 0, 1);
+    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
+
+    cv::copyMakeBorder(resized_cv, cpuOpRet, top, bottom, left, right, borderType, value);
+    EXPECT_MAT_NEAR(checker, cpuOpRet, 1e-10);
+    cv::cann::resetDevice();
+}
+
 } // namespace
 } // namespace opencv_test

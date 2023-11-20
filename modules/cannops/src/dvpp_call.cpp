@@ -200,11 +200,30 @@ DvppOperatorRunner& DvppOperatorRunner::addOutput(Mat& mat)
 
 DvppOperatorRunner& DvppOperatorRunner::getResult(Mat& dst, uint32_t& taskIDResult)
 {
-    hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
+    uint32_t ret = hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to get process result.");
     const uint32_t esz = CV_ELEM_SIZE(dst.type());
     size_t step = esz * dst.cols;
     aclrtMemcpy2d(dst.data, dst.step[0], outputPic.picture_address, step,
                   outputPic.picture_width_stride, outputPic.picture_height_stride,
+                  ACL_MEMCPY_DEVICE_TO_HOST);
+    return *this;
+}
+
+DvppOperatorRunner& DvppOperatorRunner::getResult(Mat& dst, uint32_t& taskIDResult,
+                                                  hi_vpc_pic_info destPtr)
+{
+    uint32_t ret = hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to get process result.");
+    const uint32_t esz = CV_ELEM_SIZE(dst.type());
+    size_t step = esz * dst.cols;
+    // size_t bufferSize = destPtr.picture_width_stride * destPtr.picture_height_stride;
+    // aclrtMemcpy(dst.data, bufferSize, destPtr.picture_address, bufferSize,
+    //             ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy2d(dst.data, dst.step[0], destPtr.picture_address, step,
+                  destPtr.picture_width_stride, destPtr.picture_height_stride,
                   ACL_MEMCPY_DEVICE_TO_HOST);
     return *this;
 }

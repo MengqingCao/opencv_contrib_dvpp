@@ -267,7 +267,6 @@ PERF_TEST_P(NPU, RESIZE_WARMUP, TYPICAL_ASCEND_MAT_SIZES)
     SANITY_CHECK_NOTHING();
 }
 
-
 PERF_TEST_P(NPU, RESIZE, TYPICAL_ASCEND_MAT_SIZES)
 {
     Mat mat(GET_PARAM(0), CV_32FC3);
@@ -307,6 +306,53 @@ PERF_TEST_P(NPU, RESIZEDVPP, DVPP_ASCEND_MAT_SIZES)
     declare.in(mat, WARMUP_RNG);
     Size dsize = Size(256, 256);
     TEST_CYCLE_N(10) { cv::cann::resizedvpp(mat, dst, dsize, 0, 0, 0); }
+    SANITY_CHECK_NOTHING();
+}
+
+PERF_TEST_P(NPU, BTACH_CROP_RESIZE_DVPP, DVPP_ASCEND_MAT_SIZES)
+{
+    Mat resized_cv, checker, cpuOpRet, cpuMat(GET_PARAM(0), CV_8UC3);
+    declare.in(cpuMat, WARMUP_RNG);
+    const Rect b(1, 2, 128, 128);
+    Size dsize = Size(256, 256);
+    int top, bottom, left, right;
+    top = (int)(0);
+    bottom = 0;
+    left = (int)(0);
+    right = 0;
+    int borderType = 0;
+    double scalarV[3] = {1, 1, 1};
+
+    TEST_CYCLE_N(10)
+    {
+        cv::cann::batchCropResizeMakeBorder(cpuMat, checker, b, dsize, 0, 0, 0, borderType, scalarV,
+                                            top, left);
+    }
+
+    SANITY_CHECK_NOTHING();
+}
+
+PERF_TEST_P(CPU, BTACH_CROP_RESIZE_DVPP, DVPP_ASCEND_MAT_SIZES)
+{
+    Mat resized_cv, checker, cpuOpRet, cpuMat(GET_PARAM(0), CV_8UC3);
+    declare.in(cpuMat, WARMUP_RNG);
+    const Rect b(1, 2, 128, 128);
+    Size dsize = Size(256, 256);
+    int top, bottom, left, right;
+    top = (int)(0);
+    bottom = 0;
+    left = (int)(0);
+    right = 0;
+    int borderType = 0;
+    double scalarV[3] = {1, 1, 1};
+    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
+
+    TEST_CYCLE_N(10)
+    {
+        Mat cropped_cv(cpuMat, b);
+        cv::resize(cropped_cv, resized_cv, dsize, 0, 0, 1);
+        cv::copyMakeBorder(resized_cv, cpuOpRet, top, bottom, left, right, borderType, value);
+    }
     SANITY_CHECK_NOTHING();
 }
 
