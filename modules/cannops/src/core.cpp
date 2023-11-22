@@ -469,10 +469,10 @@ Mat cropdvpp(InputArray _src, const Rect& rect, AscendStream& stream)
     return dst;
 }
 
-void batchCropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
-                               double inv_scale_x, double inv_scale_y, int interpolation,
-                               const int borderType, double* scalarV, int top, int left,
-                               AscendStream& stream)
+void CropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
+                          double inv_scale_x, double inv_scale_y, int interpolation,
+                          const int borderType, double* scalarV, int top, int left,
+                          AscendStream& stream)
 {
     uint32_t ret;
     // crop info
@@ -503,7 +503,7 @@ void batchCropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& re
 
     uint32_t cntCrop = 1;
     hi_u32 batchNum = 1;
-    hi_u32 cnt[1] = {1};
+    hi_u32 cnt = 1;
     hi_vpc_pic_info* batchInput[batchNum];
     for (int i = 0; i < batchNum; i++)
     {
@@ -521,13 +521,77 @@ void batchCropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& re
     crop_resize_make_border_info[0].border_type = static_cast<hi_vpc_bord_type>(borderType);
     memcpy(crop_resize_make_border_info[0].scalar_value.val, scalarV, sizeof(scalarV));
 
-    ret = hi_mpi_vpc_batch_crop_resize_make_border(op.chnId, (const hi_vpc_pic_info**)batchInput,
-                                                   batchNum, crop_resize_make_border_info, cnt,
-                                                   &taskID, -1);
+    ret = hi_mpi_vpc_crop_resize_make_border(op.chnId, (const hi_vpc_pic_info*)&op.inputPic,
+                                             crop_resize_make_border_info, cnt, &taskID, -1);
     if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to crop image");
     uint32_t taskIDResult = taskID;
-    op.getResult(dst, taskIDResult, crop_resize_make_border_info[0].dest_pic_info);
+    op.getResult(dst, taskIDResult);
+}
+
+void batchCropResizeMakeBorder(std::vector<cv::Mat>& _src, std::vector<cv::Mat>& _dst,
+                               const Rect& rect, Size dsize, double inv_scale_x, double inv_scale_y,
+                               int interpolation, const int borderType, double* scalarV, int top,
+                               int left, int batchNum)
+{
+    // crop info
+    uint32_t x = rect.x, y = rect.y, width = rect.width, height = rect.height;
+
+    DvppOperatorRunner op;
+    op.Init();
+    op.chnId = 0;
+    op.createChannel();
+
+    uint32_t taskID = 0;
+    int32_t sizeIn[] = {_src[0].rows, _src[0].cols};
+    int32_t dstSize[] = {_dst[0].rows, _dst[0].cols};
+
+    // set input and output
+    op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    hi_vpc_pic_info* batchInput[batchNum];
+    hi_vpc_crop_region cropRegion = {
+        .top_offset = y, .left_offset = x, .crop_width = width, .crop_height = height};
+    hi_vpc_crop_region_info cropInfo = {.dest_pic_info = op.outputPic, .crop_region = cropRegion};
+    hi_vpc_crop_region_info cropInfos[] = {cropInfo};
+
+    uint32_t cntCrop = 1;
+    hi_u32 cnt[batchNum];
+
+    hi_vpc_resize_info resize_info = {
+        .resize_width = dsize.width, .resize_height = dsize.height, .interpolation = interpolation};
+    hi_vpc_crop_resize_border_region crop_resize_make_border_info[batchNum];
+
+    for (size_t i = 0; i < batchNum; i++)
+    {
+        op.setMemAlign(&op.inputPic).setPic(sizeIn, &op.inputPic);
+        op.addInput(_src[i]);
+        batchInput[i] = &op.inputPic;
+
+        op.setMemAlign(&op.outputPic).setPic(dstSize, &op.outputPic);
+        op.addOutput(_dst[i]);
+        crop_resize_make_border_info[i].dest_pic_info = op.outputPic;
+
+        crop_resize_make_border_info[i].crop_region = cropRegion;
+        crop_resize_make_border_info[i].resize_info = resize_info;
+        crop_resize_make_border_info[i].dest_top_offset = top;
+        crop_resize_make_border_info[i].dest_left_offset = left;
+        crop_resize_make_border_info[i].border_type = static_cast<hi_vpc_bord_type>(borderType);
+        // memcpy(crop_resize_make_border_info[i].scalar_value.val, scalarV, sizeof(scalarV));
+        crop_resize_make_border_info[i].scalar_value.val[0] = 1;
+        crop_resize_make_border_info[i].scalar_value.val[1] = 1;
+        crop_resize_make_border_info[i].scalar_value.val[2] = 1;
+        crop_resize_make_border_info[i].scalar_value.val[3] = 1;
+
+        cnt[i] = 1;
+    }
+    uint32_t ret = hi_mpi_vpc_batch_crop_resize_make_border(
+        op.chnId, (const hi_vpc_pic_info**)batchInput, batchNum, crop_resize_make_border_info, cnt, &taskID, -1);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to crop image");
+
+    uint32_t taskIDResult = taskID;
+    // op.getResult(_dst, taskIDResult, crop_resize_make_border_info, batchNum);
 }
 
 } // namespace cann

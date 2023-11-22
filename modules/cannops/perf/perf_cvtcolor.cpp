@@ -41,10 +41,12 @@ DEF_PARAM_TEST(CPU, Size, ColorConversionCodes);
 PERF_TEST_P(NPU, CVT_COLOR_3_WARMUP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_3))
 {
     Mat mat(GET_PARAM(0), CV_32FC3);
-    Mat dst;
+    AscendMat dst;
+    AscendMat src;
+    src.upload(mat);
     declare.in(mat, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
+    TEST_CYCLE_N(10) { cv::cann::cvtColor(src, dst, GET_PARAM(1)); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -52,10 +54,12 @@ PERF_TEST_P(NPU, CVT_COLOR_3_WARMUP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, 
 PERF_TEST_P(NPU, CVT_COLOR_3, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_3))
 {
     Mat mat(GET_PARAM(0), CV_32FC3);
-    Mat dst;
+    AscendMat dst;
+    AscendMat src;
+    src.upload(mat);
     declare.in(mat, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
+    TEST_CYCLE_N(10) { cv::cann::cvtColor(src, dst, GET_PARAM(1)); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -72,10 +76,12 @@ PERF_TEST_P(CPU, CVT_COLOR_3, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COL
 PERF_TEST_P(NPU, CVT_COLOR_1_WARMUP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_1))
 {
     Mat mat(GET_PARAM(0), CV_32FC1);
-    Mat dst;
+    AscendMat dst;
+    AscendMat src;
+    src.upload(mat);
     declare.in(mat, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
+    TEST_CYCLE_N(10) { cv::cann::cvtColor(src, dst, GET_PARAM(1)); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -84,10 +90,12 @@ PERF_TEST_P(NPU, CVT_COLOR_1_WARMUP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, 
 PERF_TEST_P(NPU, CVT_COLOR_1, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_1))
 {
     Mat mat(GET_PARAM(0), CV_32FC1);
-    Mat dst;
+    AscendMat dst;
+    AscendMat src;
+    src.upload(mat);
     declare.in(mat, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::cvtColor(mat, dst, GET_PARAM(1)); }
+    TEST_CYCLE_N(10) { cv::cann::cvtColor(src, dst, GET_PARAM(1)); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -105,9 +113,11 @@ PERF_TEST_P(NPU, NPU_CVT_COLOR_DVPP_WARMUP,
             testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_DVPP))
 {
     Mat mat(GET_PARAM(0), CV_8UC3);
-    Mat dst;
+    AscendMat dst;
+    AscendMat src;
+    src.upload(mat);
     declare.in(mat, WARMUP_RNG);
-    TEST_CYCLE_N(10) { cv::cann::cvtColordvpp(mat, dst, GET_PARAM(1)); }
+    TEST_CYCLE_N(10) { cv::cann::cvtColordvpp(src, dst, GET_PARAM(1)); }
     SANITY_CHECK_NOTHING();
 }
 PERF_TEST_P(NPU, CVT_COLOR_DVPP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_DVPP))

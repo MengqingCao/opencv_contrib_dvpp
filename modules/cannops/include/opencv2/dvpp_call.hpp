@@ -52,6 +52,9 @@ public:
     DvppOperatorRunner& addOutput(Mat& mat);
     DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult);
     DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult, hi_vpc_pic_info destPtr);
+    DvppOperatorRunner& getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult,
+                                  hi_vpc_crop_resize_border_region* crop_resize_make_border_info,
+                                  int batchNum);
     DvppOperatorRunner& setMemAlign(hi_vpc_pic_info* Pic);
 
     DvppOperatorRunner& reset();

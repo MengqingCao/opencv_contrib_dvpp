@@ -23,11 +23,14 @@ PERF_TEST_P(NPU, MAT_ADD_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, ARITHM_
 {
     Mat mat1(GET_PARAM(0), GET_PARAM(1));
     Mat mat2(GET_PARAM(0), GET_PARAM(1));
-    Mat dst;
+    AscendMat dst, mask;
+    AscendMat src1, src2;
+    src1.upload(mat1);
+    src2.upload(mat2);
     declare.in(mat1, WARMUP_RNG);
     declare.in(mat2, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::add(mat1, mat2, dst, noArray(), -1); }
+    TEST_CYCLE_N(10) { cv::cann::add(src1, src2, dst, mask, -1); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -47,11 +50,14 @@ PERF_TEST_P(NPU, MAT_SUB_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, ARITHM_
 {
     Mat mat1(GET_PARAM(0), GET_PARAM(1));
     Mat mat2(GET_PARAM(0), GET_PARAM(1));
-    Mat dst;
+    AscendMat dst, mask;
+    AscendMat src1, src2;
+    src1.upload(mat1);
+    src2.upload(mat2);
     declare.in(mat1, WARMUP_RNG);
     declare.in(mat2, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::subtract(mat1, mat2, dst, noArray(), -1); }
+    TEST_CYCLE_N(10) { cv::cann::subtract(src1, src2, dst, mask, -1); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -71,11 +77,14 @@ PERF_TEST_P(NPU, MAT_MUL_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, ARITHM_
 {
     Mat mat1(GET_PARAM(0), GET_PARAM(1));
     Mat mat2(GET_PARAM(0), GET_PARAM(1));
-    Mat dst;
+    AscendMat dst;
+    AscendMat src1, src2;
+    src1.upload(mat1);
+    src2.upload(mat2);
     declare.in(mat1, WARMUP_RNG);
     declare.in(mat2, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::multiply(mat1, mat2, dst, 1, -1); }
+    TEST_CYCLE_N(10) { cv::cann::multiply(src1, src2, dst, 1, -1); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -95,11 +104,14 @@ PERF_TEST_P(NPU, MAT_DIV_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, ARITHM_
 {
     Mat mat1(GET_PARAM(0), GET_PARAM(1));
     Mat mat2(GET_PARAM(0), GET_PARAM(1));
-    Mat dst;
+    AscendMat dst;
+    AscendMat src1, src2;
+    src1.upload(mat1);
+    src2.upload(mat2);
     declare.in(mat1, WARMUP_RNG);
     declare.in(mat2, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::divide(mat1, mat2, dst, 1, -1); }
+    TEST_CYCLE_N(10) { cv::cann::divide(src1, src2, dst, 1, -1); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -119,11 +131,14 @@ PERF_TEST_P(NPU, MAT_BITWISE_AND_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES,
 {
     Mat mat1(GET_PARAM(0), GET_PARAM(1));
     Mat mat2(GET_PARAM(0), GET_PARAM(1));
-    Mat dst;
+    AscendMat dst;
+    AscendMat src1, src2;
+    src1.upload(mat1);
+    src2.upload(mat2);
     declare.in(mat1, WARMUP_RNG);
     declare.in(mat2, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::bitwise_and(mat1, mat2, dst, noArray()); }
+    TEST_CYCLE_N(10) { cv::cann::bitwise_and(src1, src2, dst); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -143,11 +158,14 @@ PERF_TEST_P(NPU, MAT_BITWISE_OR_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, 
 {
     Mat mat1(GET_PARAM(0), GET_PARAM(1));
     Mat mat2(GET_PARAM(0), GET_PARAM(1));
-    Mat dst;
+    AscendMat dst;
+    AscendMat src1, src2;
+    src1.upload(mat1);
+    src2.upload(mat2);
     declare.in(mat1, WARMUP_RNG);
     declare.in(mat2, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::bitwise_or(mat1, mat2, dst, noArray()); }
+    TEST_CYCLE_N(10) { cv::cann::bitwise_or(src1, src2, dst); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -167,11 +185,14 @@ PERF_TEST_P(NPU, MAT_BITWISE_XOR_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES,
 {
     Mat mat1(GET_PARAM(0), GET_PARAM(1));
     Mat mat2(GET_PARAM(0), GET_PARAM(1));
-    Mat dst;
+    AscendMat dst;
+    AscendMat src1, src2;
+    src1.upload(mat1);
+    src2.upload(mat2);
     declare.in(mat1, WARMUP_RNG);
     declare.in(mat2, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::bitwise_xor(mat1, mat2, dst, noArray()); }
+    TEST_CYCLE_N(10) { cv::cann::bitwise_xor(src1, src2, dst); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
@@ -190,10 +211,12 @@ PERF_TEST_P(CPU, MAT_BITWISE_XOR_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES,
 PERF_TEST_P(NPU, MAT_BITWISE_NOT_MAT, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, ARITHM_MAT_DEPTH))
 {
     Mat mat(GET_PARAM(0), GET_PARAM(1));
-    Mat dst;
+    AscendMat dst, mask;
+    AscendMat src;
+    src.upload(mat);
     declare.in(mat, WARMUP_RNG);
     cv::cann::setDevice(DEVICE_ID);
-    TEST_CYCLE_N(10) { cv::cann::bitwise_not(mat, dst, noArray()); }
+    TEST_CYCLE_N(10) { cv::cann::bitwise_not(src, dst, mask); }
     cv::cann::resetDevice();
     SANITY_CHECK_NOTHING();
 }
