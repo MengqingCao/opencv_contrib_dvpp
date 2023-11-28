@@ -360,6 +360,55 @@ double invert(InputArray _src, OutputArray _dst, int flags, AscendStream& stream
 //                 ACL_MEMCPY_DEVICE_TO_DEVICE);
 // }
 
+void resizedvpp(AscendMat& _src, AscendMat& _dst, Size dsize, double inv_scale_x,
+                double inv_scale_y, int interpolation, AscendStream& stream)
+{
+    // AscendMat src = getInputMat(_src, stream);
+    Size ssize = _src.size();
+    CV_Assert(!ssize.empty());
+    float_t scaleX = (float_t)inv_scale_x;
+    float_t scaleY = (float_t)inv_scale_y;
+    // CV_Assert(interpolation == INTER_CUBIC || interpolation == INTER_AREA);
+
+    if (dsize.empty())
+    {
+        CV_Assert(scaleX > 0);
+        CV_Assert(scaleY > 0);
+        dsize = Size(saturate_cast<int>(ssize.width * inv_scale_x),
+                     saturate_cast<int>(ssize.height * inv_scale_y));
+        CV_Assert(!dsize.empty());
+    }
+    else
+    {
+        scaleX = (float_t)dsize.width / ssize.width;
+        scaleY = (float_t)dsize.height / ssize.height;
+        CV_Assert(scaleX > 0);
+        CV_Assert(scaleY > 0);
+    }
+
+    int32_t dstSize[] = {dsize.width, dsize.height};
+    _dst.create(dsize.width, dsize.height, _src.type());
+
+    DvppOperatorRunner op;
+    op.Init();
+    op.chnId = 0;
+    op.stChnAttr = {};
+    op.createChannel();
+
+    uint32_t taskID = 0;
+    int32_t sizeIn[] = {_src.rows, _src.cols};
+    op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.setMemAlign(&op.inputPic).setPic(sizeIn, &op.inputPic).addInput(_src);
+    op.setMemAlign(&op.outputPic).setPic(dstSize, &op.outputPic).addOutput(_dst);
+    uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID, -1);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to resize image");
+
+    uint32_t taskIDResult = taskID;
+    op.getResult(_dst, taskIDResult);
+}
+
 void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x,
                 double inv_scale_y, int interpolation, AscendStream& stream)
 {
@@ -401,20 +450,12 @@ void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_
     op.stChnAttr = {};
     op.createChannel();
 
-    // BGR alignment
-    op.widthAlignment = 16;
-    op.heightAlignment = 1;
-    op.sizeAlignment = 3;
-    op.sizeNum = 3;
-
     uint32_t taskID = 0;
     int32_t sizeIn[] = {src.rows, src.cols};
     op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
     op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
-    op.setPic(sizeIn, &op.inputPic);
-    op.setPic(dstSize, &op.outputPic);
-    op.addInput(src);
-    op.addOutput(dst);
+    op.setMemAlign(&op.inputPic).setPic(sizeIn, &op.inputPic).addInput(src);
+    op.setMemAlign(&op.outputPic).setPic(dstSize, &op.outputPic).addOutput(dst);
     uint32_t ret = hi_mpi_vpc_resize(op.chnId, &op.inputPic, &op.outputPic, 0, 0, 0, &taskID, -1);
     if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to resize image");
@@ -469,16 +510,16 @@ Mat cropdvpp(InputArray _src, const Rect& rect, AscendStream& stream)
     return dst;
 }
 
-void CropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
-                          double inv_scale_x, double inv_scale_y, int interpolation,
-                          const int borderType, double* scalarV, int top, int left,
-                          AscendStream& stream)
+void cropResizeMakeBorder(const InputArray _src, OutputArray _dst, const Rect& rect,
+                                       Size dsize, double inv_scale_x, double inv_scale_y,
+                                       int interpolation, const int borderType, Scalar scalarV,
+                                       int top, int left)
 {
     uint32_t ret;
     // crop info
     uint32_t x = rect.x, y = rect.y, width = rect.width, height = rect.height;
     Mat src = _src.getMat();
-    _dst.create(dsize.width + left, dsize.height + top, src.type());
+    _dst.create(dsize.height + top, dsize.width + left, src.type());
     Mat dst = _dst.getMat();
 
     DvppOperatorRunner op;
@@ -487,8 +528,8 @@ void CropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& rect, S
     op.createChannel();
 
     uint32_t taskID = 0;
-    int32_t sizeIn[] = {src.rows, src.cols};
-    int32_t dstSize[] = {dst.rows, dst.cols};
+    int32_t sizeIn[] = {src.cols, src.rows};
+    int32_t dstSize[] = {dst.cols, dst.rows};
 
     // set input and output
     op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
@@ -502,13 +543,7 @@ void CropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& rect, S
     hi_vpc_crop_region_info cropInfos[] = {cropInfo};
 
     uint32_t cntCrop = 1;
-    hi_u32 batchNum = 1;
     hi_u32 cnt = 1;
-    hi_vpc_pic_info* batchInput[batchNum];
-    for (int i = 0; i < batchNum; i++)
-    {
-        batchInput[i] = &op.inputPic;
-    }
 
     hi_vpc_resize_info resize_info = {
         .resize_width = dsize.width, .resize_height = dsize.height, .interpolation = interpolation};
@@ -519,19 +554,118 @@ void CropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& rect, S
     crop_resize_make_border_info[0].dest_top_offset = top;
     crop_resize_make_border_info[0].dest_left_offset = left;
     crop_resize_make_border_info[0].border_type = static_cast<hi_vpc_bord_type>(borderType);
-    memcpy(crop_resize_make_border_info[0].scalar_value.val, scalarV, sizeof(scalarV));
+    crop_resize_make_border_info[0].scalar_value.val[0] = scalarV[0];
+    crop_resize_make_border_info[0].scalar_value.val[1] = scalarV[1];
+    crop_resize_make_border_info[0].scalar_value.val[2] = scalarV[2];
 
     ret = hi_mpi_vpc_crop_resize_make_border(op.chnId, (const hi_vpc_pic_info*)&op.inputPic,
                                              crop_resize_make_border_info, cnt, &taskID, -1);
     if (ret != HI_SUCCESS)
-        CV_Error(Error::StsBadFlag, "failed to crop image");
+        CV_Error(Error::StsBadFlag, "failed to crop, resize and make border of image");
+    uint32_t taskIDResult = taskID;
+    op.getResult(dst, taskIDResult);
+}
+
+void CropResize(const InputArray _src, OutputArray _dst, const Rect& rect, Size dsize, double inv_scale_x,
+                double inv_scale_y, int interpolation)
+{
+    uint32_t ret;
+    // crop info
+    uint32_t x = rect.x, y = rect.y, width = rect.width, height = rect.height;
+    Mat src = _src.getMat();
+    _dst.create(dsize.height, dsize.width, src.type());
+    Mat dst = _dst.getMat();
+
+    DvppOperatorRunner op;
+    op.Init();
+    op.chnId = 0;
+    op.createChannel();
+
+    uint32_t taskID = 0;
+    int32_t sizeIn[] = {src.cols, src.rows};
+    int32_t dstSize[] = {dst.cols, dst.rows};
+
+    // set input and output
+    op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.setMemAlign(&op.inputPic).setPic(sizeIn, &op.inputPic).addInput(src);
+    op.setMemAlign(&op.outputPic).setPic(dstSize, &op.outputPic).addOutput(dst);
+
+    hi_vpc_crop_region cropRegion = {
+        .top_offset = y, .left_offset = x, .crop_width = width, .crop_height = height};
+    hi_vpc_crop_region_info cropInfo = {.dest_pic_info = op.outputPic, .crop_region = cropRegion};
+    hi_vpc_crop_region_info cropInfos[] = {cropInfo};
+
+    uint32_t cntCrop = 1;
+    hi_u32 cnt = 1;
+
+    hi_vpc_resize_info resize_info = {
+        .resize_width = dsize.width, .resize_height = dsize.height, .interpolation = interpolation};
+    hi_vpc_crop_resize_region crop_resize_info[1];
+    crop_resize_info[0].dest_pic_info = op.outputPic;
+    crop_resize_info[0].crop_region = cropRegion;
+    crop_resize_info[0].resize_info = resize_info;
+
+    ret = hi_mpi_vpc_crop_resize(op.chnId, (const hi_vpc_pic_info*)&op.inputPic, crop_resize_info,
+                                 cnt, &taskID, -1);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to crop and resize image");
+    uint32_t taskIDResult = taskID;
+    op.getResult(dst, taskIDResult);
+}
+
+void CropResizePaste(const InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
+                     double inv_scale_x, double inv_scale_y, int interpolation, int top, int left)
+{
+    uint32_t ret;
+    // crop info
+    uint32_t x = rect.x, y = rect.y, width = rect.width, height = rect.height;
+    Mat src = _src.getMat();
+    _dst.create(src.rows, src.cols, src.type());
+    Mat dst = _dst.getMat();
+
+    DvppOperatorRunner op;
+    op.Init();
+    op.chnId = 0;
+    op.createChannel();
+
+    uint32_t taskID = 0;
+    int32_t sizeIn[] = {src.cols, src.rows};
+    int32_t dstSize[] = {dst.cols, dst.rows};
+
+    // set input and output
+    op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    op.setMemAlign(&op.inputPic).setPic(sizeIn, &op.inputPic).addInput(src);
+    op.setMemAlign(&op.outputPic).setPic(dstSize, &op.outputPic).addOutput(dst);
+
+    hi_vpc_crop_region cropRegion = {
+        .top_offset = y, .left_offset = x, .crop_width = width, .crop_height = height};
+    hi_vpc_crop_region_info cropInfo = {.dest_pic_info = op.outputPic, .crop_region = cropRegion};
+    hi_vpc_crop_region_info cropInfos[] = {cropInfo};
+
+    uint32_t cntCrop = 1;
+    hi_u32 cnt = 1;
+
+    hi_vpc_resize_info resize_info = {
+        .resize_width = dsize.width, .resize_height = dsize.height, .interpolation = interpolation};
+    hi_vpc_crop_resize_paste_region crop_resize_paste_info[1];
+    crop_resize_paste_info[0].dest_pic_info = op.outputPic;
+    crop_resize_paste_info[0].crop_region = cropRegion;
+    crop_resize_paste_info[0].resize_info = resize_info;
+    crop_resize_paste_info[0].dest_top_offset = top;
+    crop_resize_paste_info[0].dest_left_offset = left;
+    ret = hi_mpi_vpc_crop_resize_paste(op.chnId, (const hi_vpc_pic_info*)&op.inputPic,
+                                       crop_resize_paste_info, cnt, &taskID, -1);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to crop and resize image");
     uint32_t taskIDResult = taskID;
     op.getResult(dst, taskIDResult);
 }
 
 void batchCropResizeMakeBorder(std::vector<cv::Mat>& _src, std::vector<cv::Mat>& _dst,
                                const Rect& rect, Size dsize, double inv_scale_x, double inv_scale_y,
-                               int interpolation, const int borderType, double* scalarV, int top,
+                               int interpolation, const int borderType, Scalar scalarV, int top,
                                int left, int batchNum)
 {
     // crop info
@@ -544,12 +678,12 @@ void batchCropResizeMakeBorder(std::vector<cv::Mat>& _src, std::vector<cv::Mat>&
 
     uint32_t taskID = 0;
     int32_t sizeIn[] = {_src[0].rows, _src[0].cols};
-    int32_t dstSize[] = {_dst[0].rows, _dst[0].cols};
+    int32_t dstSize[] = {_dst[0].rows + top, _dst[0].cols + left};
 
-    // set input and output
-    op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
-    op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
-    hi_vpc_pic_info* batchInput[batchNum];
+    // // set input and output
+    // op.inputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    // op.outputPic.picture_format = HI_PIXEL_FORMAT_BGR_888;
+    // hi_vpc_pic_info* batchInput[batchNum];
     hi_vpc_crop_region cropRegion = {
         .top_offset = y, .left_offset = x, .crop_width = width, .crop_height = height};
     hi_vpc_crop_region_info cropInfo = {.dest_pic_info = op.outputPic, .crop_region = cropRegion};
@@ -561,37 +695,35 @@ void batchCropResizeMakeBorder(std::vector<cv::Mat>& _src, std::vector<cv::Mat>&
     hi_vpc_resize_info resize_info = {
         .resize_width = dsize.width, .resize_height = dsize.height, .interpolation = interpolation};
     hi_vpc_crop_resize_border_region crop_resize_make_border_info[batchNum];
-
+    op.batchInPic[0].picture_address = nullptr;
+    op.batchOutPic[0].picture_address = nullptr;
+    op.setMemAlign(&op.batchInPic[0]).setPic(sizeIn, &op.batchInPic[0]);
+    op.addBatchInput(_src, batchNum, HI_PIXEL_FORMAT_BGR_888);
+    op.setMemAlign(&op.batchOutPic[0]).setPic(dstSize, &op.batchOutPic[0]);
+    op.addBatchOutput(_dst, batchNum, HI_PIXEL_FORMAT_BGR_888);
     for (size_t i = 0; i < batchNum; i++)
     {
-        op.setMemAlign(&op.inputPic).setPic(sizeIn, &op.inputPic);
-        op.addInput(_src[i]);
-        batchInput[i] = &op.inputPic;
-
-        op.setMemAlign(&op.outputPic).setPic(dstSize, &op.outputPic);
-        op.addOutput(_dst[i]);
-        crop_resize_make_border_info[i].dest_pic_info = op.outputPic;
+        crop_resize_make_border_info[i].dest_pic_info = op.batchOutPic[i];
 
         crop_resize_make_border_info[i].crop_region = cropRegion;
         crop_resize_make_border_info[i].resize_info = resize_info;
         crop_resize_make_border_info[i].dest_top_offset = top;
         crop_resize_make_border_info[i].dest_left_offset = left;
         crop_resize_make_border_info[i].border_type = static_cast<hi_vpc_bord_type>(borderType);
-        // memcpy(crop_resize_make_border_info[i].scalar_value.val, scalarV, sizeof(scalarV));
-        crop_resize_make_border_info[i].scalar_value.val[0] = 1;
-        crop_resize_make_border_info[i].scalar_value.val[1] = 1;
-        crop_resize_make_border_info[i].scalar_value.val[2] = 1;
-        crop_resize_make_border_info[i].scalar_value.val[3] = 1;
-
+        crop_resize_make_border_info[i].scalar_value.val[0] = scalarV[0];
+        crop_resize_make_border_info[i].scalar_value.val[1] = scalarV[1];
+        crop_resize_make_border_info[i].scalar_value.val[2] = scalarV[2];
+        crop_resize_make_border_info[i].scalar_value.val[3] = scalarV[3];
         cnt[i] = 1;
     }
     uint32_t ret = hi_mpi_vpc_batch_crop_resize_make_border(
-        op.chnId, (const hi_vpc_pic_info**)batchInput, batchNum, crop_resize_make_border_info, cnt, &taskID, -1);
+        op.chnId, (const hi_vpc_pic_info**)op.batchInPic, batchNum, crop_resize_make_border_info,
+        cnt, &taskID, -1);
     if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to crop image");
 
     uint32_t taskIDResult = taskID;
-    // op.getResult(_dst, taskIDResult, crop_resize_make_border_info, batchNum);
+    op.getResult(_dst, taskIDResult, crop_resize_make_border_info, batchNum);
 }
 
 } // namespace cann

@@ -520,16 +520,22 @@ CV_EXPORTS_W void cvtColordvpp(const InputArray src, OutputArray dst, int code, 
 CV_EXPORTS_W double invert(const InputArray src, OutputArray dst, int flags = DECOMP_LU,
                            AscendStream& stream = AscendStream::Null());
 
-CV_EXPORTS_W void CropResizeMakeBorder(InputArray _src, OutputArray _dst, const Rect& rect,
+CV_EXPORTS_W void cropResizeMakeBorder(const InputArray _src, OutputArray _dst, const Rect& rect,
                                        Size dsize, double inv_scale_x, double inv_scale_y,
-                                       int interpolation, const int borderType, double* scalarV,
-                                       int top, int left,
-                                       AscendStream& stream = AscendStream::Null());
+                                       int interpolation, const int borderType, Scalar scalarV,
+                                       int top, int left);
 CV_EXPORTS_W void batchCropResizeMakeBorder(std::vector<cv::Mat>& _src, std::vector<cv::Mat>& _dst,
                                             const Rect& rect, Size dsize, double inv_scale_x,
                                             double inv_scale_y, int interpolation,
-                                            const int borderType, double* scalarV, int top,
-                                            int left, int batchNum);
+                                            const int borderType, Scalar scalarV, int top, int left,
+                                            int batchNum);
+CV_EXPORTS_W void resizedvpp(const AscendMat& _src, AscendMat& _dst, Size dsize, double inv_scale_x,
+                             double inv_scale_y, int interpolation);
+CV_EXPORTS_W void CropResize(const InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
+                             double inv_scale_x, double inv_scale_y, int interpolation);
+CV_EXPORTS_W void CropResizePaste(const InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
+                                  double inv_scale_x, double inv_scale_y, int interpolation,
+                                  int top, int left);
 //! @} cannimgproc
 
 } // namespace cann

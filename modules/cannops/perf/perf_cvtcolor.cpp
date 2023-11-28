@@ -113,11 +113,9 @@ PERF_TEST_P(NPU, NPU_CVT_COLOR_DVPP_WARMUP,
             testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_DVPP))
 {
     Mat mat(GET_PARAM(0), CV_8UC3);
-    AscendMat dst;
-    AscendMat src;
-    src.upload(mat);
+    Mat dst;
     declare.in(mat, WARMUP_RNG);
-    TEST_CYCLE_N(10) { cv::cann::cvtColordvpp(src, dst, GET_PARAM(1)); }
+    TEST_CYCLE_N(10) { cv::cann::cvtColordvpp(mat, dst, GET_PARAM(1)); }
     SANITY_CHECK_NOTHING();
 }
 PERF_TEST_P(NPU, CVT_COLOR_DVPP, testing::Combine(TYPICAL_ASCEND_MAT_SIZES, CVT_COLORS_DVPP))

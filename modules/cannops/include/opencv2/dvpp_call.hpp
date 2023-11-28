@@ -51,10 +51,14 @@ public:
     DvppOperatorRunner& addInput(Mat& mat);
     DvppOperatorRunner& addOutput(Mat& mat);
     DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult);
-    DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult, hi_vpc_pic_info destPtr);
     DvppOperatorRunner& getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult,
                                   hi_vpc_crop_resize_border_region* crop_resize_make_border_info,
                                   int batchNum);
+    DvppOperatorRunner& getResult(AscendMat& dst, uint32_t& taskIDResult);
+    DvppOperatorRunner& addBatchInput(std::vector<cv::Mat>& _src, int batchNum,
+                                      hi_pixel_format pixelFormat);
+    DvppOperatorRunner& addBatchOutput(std::vector<cv::Mat>& _src, int batchNum,
+                                       hi_pixel_format pixelFormat);
     DvppOperatorRunner& setMemAlign(hi_vpc_pic_info* Pic);
 
     DvppOperatorRunner& reset();
@@ -75,8 +79,12 @@ public:
     uint32_t AlignmentHelper(uint32_t origSize, uint32_t alignment);
     hi_vpc_pic_info inputPic;
     hi_vpc_pic_info outputPic;
+    hi_vpc_pic_info* batchInPic;
+    hi_vpc_pic_info* batchOutPic;
     hi_vpc_chn chnId;
     hi_vpc_chn_attr stChnAttr;
+    // top;
+    // left;
 };
 
 } // namespace cann

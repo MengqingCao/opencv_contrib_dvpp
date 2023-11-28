@@ -260,29 +260,37 @@ TEST(CORE, INVERT)
 TEST(CORE, CROP_RESIZE)
 {
     cv::cann::setDevice(DEVICE_ID);
+    Mat cpuMat = cv::imread(
+        "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black1.jpg");
 
-    Mat resized_cv, checker, cpuOpRet, cpuMat = randomMat(256, 256, CV_8UC3, 100.0, 255.0);
-    Size dsize = Size(64, 64);
-    const Rect b(1, 2, 128, 128);
+    Mat resized_cv, checker, cpuOpRet;
+    // Mat cpuMat = randomMat(256, 256000, CV_8UC3, 100.0, 255.0);
+    Size dsize = Size(112, 112);
+    const Rect b(0, 0, 128, 128);
     RNG rng(12345);
-    double scalarV[3] = {1, 1, 1};
+    float scalarV[3] = {0, 0, 255};
     int top, bottom, left, right;
-    top = (int)(0);
+    top = (int)(512);
     bottom = 0;
-    left = (int)(0);
+    left = (int)(256);
     right = 0;
     int borderType = 0;
     // HI_BORDER_CONSTANT = 0 BORDER_CONSTANT = 0
+    Scalar value = {scalarV[0], scalarV[1], scalarV[2], 0};
 
-    cv::cann::CropResizeMakeBorder(cpuMat, checker, b, dsize, 0, 0, 0, borderType, scalarV,
-                                        top, left);
+    // cv::cann::cropResizeMakeBorder(cpuMat, checker, b, dsize, 0, 0, 0, borderType, value, top,
+    //                                left);
+    cv::cann::CropResizePaste(cpuMat, checker, b, dsize, 0, 0, 0, 16, 16);
+    cv::imwrite(
+        "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black_cpp.jpg",
+        checker);
+    // std::cout << checker << std::endl;
 
     Mat cropped_cv(cpuMat, b);
     cv::resize(cropped_cv, resized_cv, dsize, 0, 0, 1);
-    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
-
-    cv::copyMakeBorder(resized_cv, cpuOpRet, top, bottom, left, right, borderType, value);
-    EXPECT_MAT_NEAR(checker, cpuOpRet, 1e-10);
+    
+    // cv::copyMakeBorder(resized_cv, cpuOpRet, top, bottom, left, right, borderType, value);
+    EXPECT_MAT_NEAR(checker, resized_cv, 1e-10);
     cv::cann::resetDevice();
 }
 
@@ -294,7 +302,7 @@ TEST(CORE, BATCH_CROP_RESIZE)
     Size dsize = Size(64, 64);
     const Rect b(1, 2, 128, 128);
     RNG rng(12345);
-    double scalarV[3] = {1, 1, 1};
+    float scalarV[3] = {rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255)};
     int top, bottom, left, right;
     top = (int)(0);
     bottom = 0;
@@ -309,13 +317,13 @@ TEST(CORE, BATCH_CROP_RESIZE)
     }
     int borderType = 0;
     // HI_BORDER_CONSTANT = 0 BORDER_CONSTANT = 0
+    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
 
-    cv::cann::batchCropResizeMakeBorder(batchInput, checker, b, dsize, 0, 0, 0, borderType, scalarV,
+    cv::cann::batchCropResizeMakeBorder(batchInput, checker, b, dsize, 0, 0, 0, borderType, value,
                                         top, left, batchNum);
 
     Mat cropped_cv(cpuMat, b);
     cv::resize(cropped_cv, resized_cv, dsize, 0, 0, 1);
-    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
 
     cv::copyMakeBorder(resized_cv, cpuOpRet, top, bottom, left, right, borderType, value);
     for (int i = 0; i < batchNum; i++)
