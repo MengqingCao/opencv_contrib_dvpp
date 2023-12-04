@@ -487,9 +487,8 @@ CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize
                          double inv_scale_x, double inv_scale_y, int interpolation,
                          AscendStream& stream = AscendStream::Null());
 
-CV_EXPORTS_W void resizedvpp(AscendMat& src, AscendMat& dst, Size dsize, double inv_scale_x,
-                             double inv_scale_y, int interpolation,
-                             AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void resizedvpp(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize, double inv_scale_x,
+                             double inv_scale_y, int interpolation);
 CV_EXPORTS_W void resizedvpp(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x,
                              double inv_scale_y, int interpolation,
                              AscendStream& stream = AscendStream::Null());

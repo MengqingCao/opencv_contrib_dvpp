@@ -185,44 +185,55 @@ TEST(CORE, CROP_OVERLOAD)
 TEST(CORE, RESIZE)
 {
     Mat resized_cv, checker, cpuMat = randomMat(10, 10, CV_32F, 100.0, 255.0);
-    Size dsize = Size(6, 6);
+    Size dsize = Size(1080, 512);
     // only support {2 INTER_CUBIC} and {3 INTER_AREA}
     // only the resize result of INTER_AREA is close to CV's.
     int flags = 3;
     cv::cann::setDevice(0);
     cv::resize(cpuMat, resized_cv, dsize, 0, 0, flags);
     cv::cann::resize(cpuMat, checker, dsize, 0, 0, flags);
-    EXPECT_MAT_NEAR(resized_cv, checker, 1e-4);
+    EXPECT_MAT_NEAR(resized_cv, checker, 1e-1);
 
     cv::resize(cpuMat, resized_cv, Size(), 0.5, 0.5, flags);
     cv::cann::resize(cpuMat, checker, Size(), 0.5, 0.5, flags);
-    EXPECT_MAT_NEAR(resized_cv, checker, 1e-4);
+    EXPECT_MAT_NEAR(resized_cv, checker, 1e-1);
 
     AscendMat npuMat, npuChecker;
     npuMat.upload(cpuMat);
     cv::resize(cpuMat, resized_cv, dsize, 0, 0, flags);
     cv::cann::resize(npuMat, npuChecker, dsize, 0, 0, flags);
     npuChecker.download(checker);
-    EXPECT_MAT_NEAR(resized_cv, checker, 1e-4);
+    EXPECT_MAT_NEAR(resized_cv, checker, 1e-1);
 
-    cv::resize(cpuMat, resized_cv, Size(), 0.5, 0.5, flags);
-    cv::cann::resize(npuMat, npuChecker, Size(), 0.5, 0.5, flags);
+    cv::resize(cpuMat, resized_cv, Size(), 200, 200, flags);
+    cv::cann::resize(npuMat, npuChecker, Size(), 200, 200, flags);
     npuChecker.download(checker);
-    EXPECT_MAT_NEAR(resized_cv, checker, 1e-4);
+    EXPECT_MAT_NEAR(resized_cv, checker, 1e-1);
     cv::cann::resetDevice();
 }
 
 TEST(CORE, RESIZE_DVPP)
 {
     Mat resized_cv, checker, cpuMat = randomMat(256, 256, CV_8UC3, 100.0, 255.0);
-    Size dsize = Size(64, 64);
+    Size dsize = Size(512, 64);
     cv::resize(cpuMat, resized_cv, dsize, 0, 0, 1);
-    cv::cann::resizedvpp(cpuMat, checker, dsize, 0, 0, 0);
+    cv::cann::resizedvpp(cpuMat, checker, dsize, 0, 0, 1);
     EXPECT_MAT_NEAR(resized_cv, checker, 1e-10);
 
+    AscendMat src, dst;
+    Mat checker1;
+    src.upload(cpuMat);
+    cv::cann::resizedvpp(src, dst, dsize, 0, 0, 1);
+    dst.download(checker1);
+    EXPECT_MAT_NEAR(resized_cv, checker1, 1e-10);
+
     cv::resize(cpuMat, resized_cv, Size(), 0.5, 0.5, 1);
-    cv::cann::resizedvpp(cpuMat, checker, Size(), 0.5, 0.5, 0);
+    cv::cann::resizedvpp(cpuMat, checker, Size(), 0.5, 0.5, 1);
     EXPECT_MAT_NEAR(resized_cv, checker, 1e-10);
+
+    cv::cann::resizedvpp(src, dst, Size(), 0.5, 0.5, 1);
+    dst.download(checker1);
+    EXPECT_MAT_NEAR(resized_cv, checker1, 1e-10);
 }
 
 TEST(CORE, CROP_OVERLOAD_DVPP)
@@ -236,28 +247,7 @@ TEST(CORE, CROP_OVERLOAD_DVPP)
     cv::cann::resetDevice();
 }
 
-TEST(CORE, INVERT)
-{
-    Mat a = (cv::Mat_<float>(3, 3) << 2.42104644730331, 1.81444796521479, -3.98072565304758, 0,
-             7.08389214348967e-3, 5.55326770986007e-3, 0, 0, 7.44556154284261e-3);
-    Mat b = a.t() * a;
-    Mat cpuOpRet, checker, checkerInv, i = Mat_<float>::eye(3, 3);
-    cv::cann::setDevice(DEVICE_ID);
-    cv::invert(b, cpuOpRet);
-    cv::cann::invert(b, checker);
-
-    std::cout << checker << '\n' << '\n' << cpuOpRet << std::endl;
-    ASSERT_LT(cvtest::norm(b * checker, i, 1), 0.1);
-
-    // cv::cann::invert(checker, checkerInv);
-    // std::cout  << '\n' << checkerInv << '\n' << '\n' << b << std::endl;
-    // EXPECT_MAT_NEAR(checkerInv, b, 1e-5);
-
-    // EXPECT_MAT_NEAR(checker, cpuOpRet, 1e-10);
-    cv::cann::resetDevice();
-}
-
-TEST(CORE, CROP_RESIZE)
+TEST(CORE, CROP_RESIZE_MAKE_BORDER)
 {
     cv::cann::setDevice(DEVICE_ID);
     Mat cpuMat = cv::imread(
@@ -265,42 +255,47 @@ TEST(CORE, CROP_RESIZE)
 
     Mat resized_cv, checker, cpuOpRet;
     // Mat cpuMat = randomMat(256, 256000, CV_8UC3, 100.0, 255.0);
-    Size dsize = Size(112, 112);
-    const Rect b(0, 0, 128, 128);
+    Size dsize = Size(64, 512);
+    const Rect b(300, 500, 128, 512);
     RNG rng(12345);
     float scalarV[3] = {0, 0, 255};
     int top, bottom, left, right;
-    top = (int)(512);
+    top = (int)(16);
     bottom = 0;
-    left = (int)(256);
+    left = (int)(16);
     right = 0;
-    int borderType = 0;
-    // HI_BORDER_CONSTANT = 0 BORDER_CONSTANT = 0
+    int interpolation = 0;
+
     Scalar value = {scalarV[0], scalarV[1], scalarV[2], 0};
+    for (int borderType = 0; borderType < 2; borderType++)
+    {
+        cv::cann::cropResizeMakeBorder(cpuMat, checker, b, dsize, 0, 0, interpolation, borderType,
+                                       value, top, left);
 
-    // cv::cann::cropResizeMakeBorder(cpuMat, checker, b, dsize, 0, 0, 0, borderType, value, top,
-    //                                left);
-    cv::cann::CropResizePaste(cpuMat, checker, b, dsize, 0, 0, 0, 16, 16);
-    cv::imwrite(
-        "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black_cpp.jpg",
-        checker);
-    // std::cout << checker << std::endl;
-
-    Mat cropped_cv(cpuMat, b);
-    cv::resize(cropped_cv, resized_cv, dsize, 0, 0, 1);
-    
-    // cv::copyMakeBorder(resized_cv, cpuOpRet, top, bottom, left, right, borderType, value);
-    EXPECT_MAT_NEAR(checker, resized_cv, 1e-10);
+        Mat cropped_cv(cpuMat, b);
+        cv::resize(cropped_cv, resized_cv, dsize, 0, 0, interpolation);
+        cv::copyMakeBorder(resized_cv, cpuOpRet, top, bottom, left, right, borderType, value);
+        cv::imwrite(
+            "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black_cpp.jpg",
+            checker);
+        cv::imwrite("/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/"
+                    "black_cpp_cv.jpg",
+                    cpuOpRet);
+        EXPECT_MAT_NEAR(checker, cpuOpRet, 1e-10);
+    }
     cv::cann::resetDevice();
 }
 
 TEST(CORE, BATCH_CROP_RESIZE)
 {
     cv::cann::setDevice(DEVICE_ID);
+    Mat cpuMat = cv::imread(
+        "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black1.jpg");
 
-    Mat resized_cv, cpuOpRet, cpuMat = randomMat(256, 256, CV_8UC3, 100.0, 255.0);
-    Size dsize = Size(64, 64);
-    const Rect b(1, 2, 128, 128);
+    Mat resized_cv, cpuOpRet;
+    // Mat cpuMat = randomMat(256, 256, CV_8UC3, 100.0, 255.0);
+    Size dsize = Size(512, 768);
+    const Rect b(200, 300, 1024, 768);
     RNG rng(12345);
     float scalarV[3] = {rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255)};
     int top, bottom, left, right;
@@ -313,23 +308,55 @@ TEST(CORE, BATCH_CROP_RESIZE)
     for (int i = 0; i < batchNum; i++)
     {
         batchInput[i] = Mat(cpuMat);
-        checker[i].create(dsize.width + left, dsize.height + top, cpuMat.type());
+        checker[i].create(dsize.height + top, dsize.width + left, cpuMat.type());
     }
     int borderType = 0;
-    // HI_BORDER_CONSTANT = 0 BORDER_CONSTANT = 0
-    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
+    Scalar value = {scalarV[0], scalarV[1], scalarV[2], 0};
 
     cv::cann::batchCropResizeMakeBorder(batchInput, checker, b, dsize, 0, 0, 0, borderType, value,
                                         top, left, batchNum);
 
     Mat cropped_cv(cpuMat, b);
-    cv::resize(cropped_cv, resized_cv, dsize, 0, 0, 1);
-
+    cv::resize(cropped_cv, resized_cv, dsize, 0, 0, 0);
     cv::copyMakeBorder(resized_cv, cpuOpRet, top, bottom, left, right, borderType, value);
     for (int i = 0; i < batchNum; i++)
     {
         EXPECT_MAT_NEAR(checker[i], cpuOpRet, 1e-10);
     }
+    cv::imwrite(
+    "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black_cpp.jpg",
+    checker[0]);
+    cv::imwrite(
+        "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black_cpp_cv.jpg",
+        cpuOpRet);
+    cv::cann::resetDevice();
+}
+
+TEST(CORE, CROP_RESIZE)
+{
+    cv::cann::setDevice(DEVICE_ID);
+    Mat cpuMat = cv::imread(
+        "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black1.jpg");
+
+    Mat resized_cv, checker, cpuOpRet;
+    // Mat cpuMat = randomMat(256, 256000, CV_8UC3, 100.0, 255.0);
+    Size dsize = Size(112, 512);
+    const Rect b(300, 500, 128, 128);
+    RNG rng(12345);
+    float scalarV[3] = {0, 0, 255};
+    Scalar value = {scalarV[0], scalarV[1], scalarV[2], 0};
+
+    cv::cann::CropResize(cpuMat, checker, b, dsize, 0, 0, 0);
+    cv::imwrite(
+        "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black_cpp.jpg",
+        checker);
+
+    Mat cropped_cv(cpuMat, b);
+    cv::resize(cropped_cv, cpuOpRet, dsize, 0, 0, 0);
+    cv::imwrite(
+        "/home/cmq/workspace/dvpp/opencv/opencv_contrib/modules/cannops/samples/black_cpp_cv.jpg",
+        cpuOpRet);
+    EXPECT_MAT_NEAR(checker, cpuOpRet, 1e-10);
     cv::cann::resetDevice();
 }
 

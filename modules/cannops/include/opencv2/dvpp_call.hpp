@@ -18,7 +18,7 @@ namespace cv
 {
 namespace cann
 {
-void acldvppMallocWarpper(void** data, size_t size);
+void acldvppMallocWarpper(void** data, std::size_t size);
 void acldvppFreeWarpper(void* data);
 
 typedef struct PicDesc
@@ -37,54 +37,87 @@ typedef struct CropPicDesc
     int height;
 } CropPicDesc;
 
+struct AscendPicDesc
+{
+    const char* name;
+    std::shared_ptr<hi_void> data;
+    std::vector<int64_t> batchNum;
+
+    size_t widthAlignment = 16;
+    size_t heightAlignment = 1;
+    size_t sizeAlignment = 3;
+    size_t sizeNum = 3;
+
+    hi_vpc_pic_info Pic;
+    AscendPicDesc& setMemAlign();
+    AscendPicDesc& setPic(hi_pixel_format _picture_format);
+    std::shared_ptr<hi_void> allocate();
+    AscendPicDesc(){};
+    AscendPicDesc(const AscendMat& ascendMat, hi_pixel_format _picture_format);
+    AscendPicDesc(const Mat& mat, hi_pixel_format _picture_format);
+};
+
+/******************************hi_mpi_vpc warppers****************************/
+inline void vpcResizeWarpper(hi_vpc_chn chnId, hi_vpc_pic_info& inPic, hi_vpc_pic_info& outPic,
+                             int interpolation, uint32_t* taskID)
+{
+    uint32_t ret = hi_mpi_vpc_resize(chnId, &inPic, &outPic, 0, 0, interpolation, taskID, -1);
+    if (ret != HI_SUCCESS)
+        CV_Error(Error::StsBadFlag, "failed to resize image");
+}
+void vpcCropResizeWarpper(hi_vpc_chn chnId, hi_vpc_pic_info& inPic, hi_vpc_pic_info& outPic,
+                          int cnt, uint32_t* taskID, const Rect& rect, Size dsize,
+                          int interpolation);
+
+void vpcCropResizeMakeBorderWarpper(hi_vpc_chn chnId, std::vector<AscendPicDesc>& inPicDesc,
+                                    std::vector<AscendPicDesc>& outPicDesc, int cnt,
+                                    uint32_t* taskID, const Rect& rect, Size dsize,
+                                    int interpolation, const int borderType, Scalar scalarV,
+                                    int top, int left);
+void vpcBatchCropResizeMakeBorderWarpper(hi_vpc_chn chnId, std::vector<AscendPicDesc>& inPicDesc,
+                                         std::vector<AscendPicDesc>& outPicDesc, int cnt[],
+                                         uint32_t* taskID, const Rect& rect, Size dsize,
+                                         int interpolation, const int borderType, Scalar scalarV,
+                                         int top, int left, int batchNum);
+/*****************************************************************************/
+
 class DvppOperatorRunner
 {
 private:
-    DvppOperatorRunner& addInput(AscendTensor& tensor);
-    DvppOperatorRunner& addOutput(AscendTensor& tensor);
+    DvppOperatorRunner& addInput(AscendPicDesc& picDesc);
+    DvppOperatorRunner& addOutput(AscendPicDesc& picDesc);
+    std::set<std::shared_ptr<hi_void>> holder;
 
 public:
     DvppOperatorRunner() {}
     virtual ~DvppOperatorRunner() { reset(); }
-    DvppOperatorRunner& addInput(AscendMat& mat);
-    DvppOperatorRunner& addOutput(AscendMat& mat);
-    DvppOperatorRunner& addInput(Mat& mat);
-    DvppOperatorRunner& addOutput(Mat& mat);
+    DvppOperatorRunner& addInput(const AscendMat& mat, hi_pixel_format _picture_format);
+    DvppOperatorRunner& addOutput(AscendMat& mat, hi_pixel_format _picture_format);
+    DvppOperatorRunner& addInput(const Mat& mat, hi_pixel_format _picture_format);
+    DvppOperatorRunner& addBatchInput(const std::vector<cv::Mat>& mats,
+                                      hi_pixel_format _picture_format, int batchNum);
+    DvppOperatorRunner& addOutput(Mat& mat, hi_pixel_format _picture_format);
+    DvppOperatorRunner& addBatchOutput(const std::vector<cv::Mat>& mats,
+                                       hi_pixel_format _picture_format, int batchNum);
+
     DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult);
-    DvppOperatorRunner& getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult,
-                                  hi_vpc_crop_resize_border_region* crop_resize_make_border_info,
-                                  int batchNum);
+    DvppOperatorRunner& getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult, int batchNum);
     DvppOperatorRunner& getResult(AscendMat& dst, uint32_t& taskIDResult);
-    DvppOperatorRunner& addBatchInput(std::vector<cv::Mat>& _src, int batchNum,
-                                      hi_pixel_format pixelFormat);
-    DvppOperatorRunner& addBatchOutput(std::vector<cv::Mat>& _src, int batchNum,
-                                       hi_pixel_format pixelFormat);
-    DvppOperatorRunner& setMemAlign(hi_vpc_pic_info* Pic);
 
     DvppOperatorRunner& reset();
     DvppOperatorRunner& createChannel();
 
-    uint32_t widthAlignment = 1;
-    uint32_t heightAlignment = 1;
-    uint32_t sizeAlignment = 1;
-    uint32_t sizeNum = 1;
+    std::vector<AscendPicDesc> inputDesc_;
+    std::vector<AscendPicDesc> outputDesc_;
 
-    DvppOperatorRunner& Init()
-    {
-        inputPic.picture_address = nullptr;
-        outputPic.picture_address = nullptr;
-        return *this;
-    }
-    DvppOperatorRunner& setPic(int32_t* size, hi_vpc_pic_info* Pic);
-    uint32_t AlignmentHelper(uint32_t origSize, uint32_t alignment);
-    hi_vpc_pic_info inputPic;
-    hi_vpc_pic_info outputPic;
-    hi_vpc_pic_info* batchInPic;
-    hi_vpc_pic_info* batchOutPic;
     hi_vpc_chn chnId;
     hi_vpc_chn_attr stChnAttr;
-    // top;
-    // left;
+    DvppOperatorRunner& Init()
+    {
+        chnId = 0;
+        stChnAttr = {};
+        return *this;
+    }
 };
 
 } // namespace cann
