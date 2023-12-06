@@ -3,7 +3,7 @@
 // of this distribution and at http://opencv.org/license.html.
 
 #include "precomp.hpp"
-
+#include <iostream>
 namespace cv
 {
 namespace cann
@@ -241,6 +241,56 @@ AscendMat crop(InputArray _src, const Rect& rect, AscendStream& stream)
     return crop(src, rect, stream);
 }
 
+void checkResize(Size& ssize, Size& dsize, double inv_scale_x, double inv_scale_y,
+                 int& interpolation)
+{
+    CV_Assert(!ssize.empty());
+    float_t scaleX = (float_t)inv_scale_x;
+    float_t scaleY = (float_t)inv_scale_y;
+    // interpolation: resize mode, support bilinear/nearest neighbor/bicubic/pixel area relation.
+    CV_Assert(interpolation == INTER_LINEAR || interpolation == INTER_NEAREST ||
+              interpolation == INTER_CUBIC || interpolation == INTER_AREA);
+    switch (interpolation)
+    {
+        case INTER_LINEAR:
+            interpolation = INTER_NEAREST;
+            break;
+        case INTER_NEAREST:
+            interpolation = INTER_LINEAR;
+            break;
+        default:
+            break;
+    }
+
+    if (dsize.empty())
+    {
+        CV_Assert(scaleX > 0);
+        CV_Assert(scaleY > 0);
+        dsize = Size(saturate_cast<int>(ssize.width * inv_scale_x),
+                     saturate_cast<int>(ssize.height * inv_scale_y));
+        CV_Assert(!dsize.empty());
+    }
+    else
+    {
+        scaleX = (float_t)dsize.width / ssize.width;
+        scaleY = (float_t)dsize.height / ssize.height;
+        CV_Assert(scaleX > 0);
+        CV_Assert(scaleY > 0);
+    }
+}
+
+template <typename inMat, typename outMat>
+void resize(const inMat& src, outMat& dst, int interpolation)
+{
+    DvppOperatorRunner op;
+    op.Init().createChannel().addInput(src).addOutput(dst);
+    uint32_t taskID = 0;
+    vpcResizeWarpper(op.chnId, op.inputDesc_[0].Pic, op.outputDesc_[0].Pic, interpolation, &taskID);
+
+    uint32_t taskIDResult = taskID;
+    op.getResult(dst, taskIDResult);
+}
+
 void resize(const AscendMat& src, AscendMat& dst, int32_t* dstSize, int interpolation,
             AscendStream& stream)
 {
@@ -271,30 +321,18 @@ void resize(const AscendMat& src, AscendMat& dst, Size dsize, double inv_scale_x
             double inv_scale_y, int interpolation, AscendStream& stream)
 {
     Size ssize = src.size();
-    CV_Assert(!ssize.empty());
-    float_t scaleX = (float_t)inv_scale_x;
-    float_t scaleY = (float_t)inv_scale_y;
-    CV_Assert(interpolation == INTER_CUBIC || interpolation == INTER_AREA);
+    checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
+    int32_t dstSize[] = {dsize.height, dsize.width};
+    dst.create(dstSize[0], dstSize[1], src.type());
 
-    if (dsize.empty())
+    if (interpolation == INTER_CUBIC || interpolation == INTER_AREA)
     {
-        CV_Assert(scaleX > 0);
-        CV_Assert(scaleY > 0);
-        dsize = Size(saturate_cast<int>(ssize.width * inv_scale_x),
-                     saturate_cast<int>(ssize.height * inv_scale_y));
-        CV_Assert(!dsize.empty());
+        resize(src, dst, dstSize, interpolation, stream);
     }
     else
     {
-        scaleX = (float_t)dsize.width / ssize.width;
-        scaleY = (float_t)dsize.height / ssize.height;
-        CV_Assert(scaleX > 0);
-        CV_Assert(scaleY > 0);
+        resize(src, dst, interpolation);
     }
-
-    int32_t dstSize[] = {dsize.width, dsize.height};
-    dst.create(dstSize[0], dstSize[1], src.type());
-    resize(src, dst, dstSize, interpolation, stream);
 }
 
 void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x, double inv_scale_y,
@@ -302,8 +340,174 @@ void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x, d
 {
     AscendMat src, dst;
     src.upload(_src, stream);
-    resize(src, dst, dsize, inv_scale_x, inv_scale_y, interpolation, stream);
-    dst.download(_dst, stream);
+
+    if (interpolation == INTER_CUBIC || interpolation == INTER_AREA)
+    {
+        resize(src, dst, dsize, inv_scale_x, inv_scale_y, interpolation, stream);
+        dst.download(_dst, stream);
+    }
+    else
+    {
+        Mat srcCV = _src.getMat();
+        Size ssize = srcCV.size();
+        checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
+        _dst.create(dsize, srcCV.type());
+        Mat dstCV = _dst.getMat();
+        resize(srcCV, dstCV, interpolation);
+    }
+}
+
+template <typename inMat, typename outMat>
+void cropResize(const inMat& src, outMat& dst, const Rect& rect, Size dsize, int interpolation)
+{
+    DvppOperatorRunner op;
+    op.Init().createChannel().addInput(src).addOutput(dst);
+    uint32_t taskID = 0;
+    int cnt = 1;
+
+    vpcCropResizeWarpper(op.chnId, op.inputDesc_[0].Pic, op.outputDesc_[0].Pic, cnt, &taskID, rect,
+                         dsize, interpolation);
+
+    uint32_t taskIDResult = taskID;
+    op.getResult(dst, taskIDResult);
+}
+
+void cropResize(const AscendMat& src, AscendMat& dst, const Rect& rect, Size dsize,
+                double inv_scale_x, double inv_scale_y, int interpolation)
+{
+    Size ssize = src.size();
+    checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
+    dst.create(dsize.height, dsize.width, src.type());
+    cropResize(src, dst, rect, dsize, interpolation);
+}
+
+void cropResize(const InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
+                double inv_scale_x, double inv_scale_y, int interpolation)
+{
+    Size ssize = _src.size();
+    checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
+
+    Mat src = _src.getMat();
+    _dst.create(dsize.height, dsize.width, src.type());
+    Mat dst = _dst.getMat();
+
+    cropResize(src, dst, rect, dsize, interpolation);
+}
+
+template <typename inMat, typename outMat>
+void copyMakeBorder(const inMat& src, outMat& dst, int* offsets, int borderType,
+                    const Scalar& value)
+{
+    DvppOperatorRunner op;
+    op.Init().createChannel().addInput(src).addOutput(dst);
+    uint32_t taskID = 0;
+    vpcCopyMakeBorderWarpper(op.chnId, op.inputDesc_[0].Pic, op.outputDesc_[0].Pic, &taskID, offsets,
+                             borderType, value);
+
+    uint32_t taskIDResult = taskID;
+    op.getResult(dst, taskIDResult);
+}
+
+void copyMakeBorder(const AscendMat& src, AscendMat& dst, int top, int bottom, int left, int right,
+                    int borderType, const Scalar& value)
+{
+    dst.create(src.rows + top + bottom, src.cols + left + right, src.type());
+    int offsets[] = {top, bottom, left, right};
+    copyMakeBorder(src, dst, offsets, borderType, value);
+}
+
+void copyMakeBorder(const InputArray _src, OutputArray _dst, int top, int bottom, int left,
+                    int right, int borderType, const Scalar& value)
+{
+    CV_Assert(borderType < 2);
+    Mat src = _src.getMat();
+    _dst.create(src.rows + top + bottom, src.cols + left + right, src.type());
+    Mat dst = _dst.getMat();
+    int offsets[] = {top, bottom, left, right};
+
+    copyMakeBorder(src, dst, offsets, borderType, value);
+}
+
+template <typename inMat, typename outMat>
+void cropResizeMakeBorder(const inMat& src, outMat& dst, const Rect& rect, Size dsize,
+                          int interpolation, const int borderType, Scalar scalarV, int top,
+                          int left)
+{
+    DvppOperatorRunner op;
+    op.Init().createChannel().addInput(src).addOutput(dst);
+    uint32_t taskID = 0;
+    int cnt = 1;
+    vpcCropResizeMakeBorderWarpper(op.chnId, op.inputDesc_, op.outputDesc_, cnt, &taskID, rect,
+                                   dsize, interpolation, borderType, scalarV, top, left);
+
+    uint32_t taskIDResult = taskID;
+    op.getResult(dst, taskIDResult);
+}
+
+void cropResizeMakeBorder(const AscendMat& src, AscendMat& dst, const Rect& rect, Size dsize,
+                          double inv_scale_x, double inv_scale_y, int interpolation,
+                          const int borderType, Scalar scalarV, int top, int left)
+{
+    CV_Assert(borderType < 2);
+    Size ssize = src.size();
+    checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
+    dst.create(dsize.height, dsize.width, src.type());
+
+    cropResizeMakeBorder(src, dst, rect, dsize, interpolation, borderType, scalarV, top, left);
+}
+
+void cropResizeMakeBorder(const InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
+                          double inv_scale_x, double inv_scale_y, int interpolation,
+                          const int borderType, Scalar scalarV, int top, int left)
+{
+    CV_Assert(borderType < 2);
+    Size ssize = _src.size();
+    checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
+
+    Mat src = _src.getMat();
+    _dst.create(dsize.height + top, dsize.width + left, src.type());
+    Mat dst = _dst.getMat();
+
+    cropResizeMakeBorder(src, dst, rect, dsize, interpolation, borderType, scalarV, top, left);
+}
+
+template <typename inMat, typename outMat>
+void batchCropResizeMakeBorder(std::vector<inMat>& src, std::vector<outMat>& dst, const Rect& rect,
+                               Size dsize, int interpolation, const int borderType, Scalar scalarV,
+                               int top, int left, int batchNum)
+{
+    DvppOperatorRunner op;
+    op.Init().createChannel().addBatchInput(src, batchNum).addBatchOutput(dst, batchNum);
+
+    uint32_t taskID = 0;
+    int cnt[batchNum];
+    vpcBatchCropResizeMakeBorderWarpper(op.chnId, op.inputDesc_, op.outputDesc_, cnt, &taskID, rect,
+                                        dsize, interpolation, borderType, scalarV, top, left,
+                                        batchNum);
+    uint32_t taskIDResult = taskID;
+    op.getResult(dst, taskIDResult, batchNum);
+}
+
+void batchCropResizeMakeBorder(std::vector<AscendMat>& src, std::vector<AscendMat>& dst,
+                               const Rect& rect, Size dsize, double inv_scale_x, double inv_scale_y,
+                               int interpolation, const int borderType, Scalar scalarV, int top,
+                               int left, int batchNum)
+{
+    Size ssize = src[0].size();
+    checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
+    batchCropResizeMakeBorder(src, dst, rect, dsize, interpolation, borderType, scalarV, top, left,
+                              batchNum);
+}
+
+void batchCropResizeMakeBorder(std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst,
+                               const Rect& rect, Size dsize, double inv_scale_x, double inv_scale_y,
+                               int interpolation, const int borderType, Scalar scalarV, int top,
+                               int left, int batchNum)
+{
+    Size ssize = src[0].size();
+    checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
+    batchCropResizeMakeBorder(src, dst, rect, dsize, interpolation, borderType, scalarV, top, left,
+                              batchNum);
 }
 
 } // namespace cann

@@ -317,7 +317,15 @@ CV_EXPORTS_W void initAcl();
  * options finished.
  */
 CV_EXPORTS_W void finalizeAcl();
+/**
+ * @brief init DVPP.
+ */
+CV_EXPORTS_W void initDvpp();
 
+/**
+ * @brief finalize DVPP.
+ */
+CV_EXPORTS_W void finalizeDvpp();
 //! @} cann_init
 
 } // namespace cann

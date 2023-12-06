@@ -350,7 +350,7 @@ CV_EXPORTS_W double threshold(const AscendMat& src, CV_OUT AscendMat& dst, doubl
 @sa cv::merge cv::cuda::merge
  */
 CV_EXPORTS_W void merge(const AscendMat* src, size_t n, CV_OUT AscendMat& dst,
-                      AscendStream& stream = AscendStream::Null());
+                        AscendStream& stream = AscendStream::Null());
 /** @overload */
 CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, CV_OUT AscendMat& dst,
                         AscendStream& stream = AscendStream::Null());
@@ -370,7 +370,7 @@ CV_EXPORTS_W void merge(const std::vector<AscendMat>& src, OutputArray& dst,
 @sa cv::split cv::cuda::split
  */
 CV_EXPORTS_W void split(const AscendMat& src, AscendMat* dst,
-                      AscendStream& stream = AscendStream::Null());
+                        AscendStream& stream = AscendStream::Null());
 /** @overload */
 CV_EXPORTS_W void split(const AscendMat& src, CV_OUT std::vector<AscendMat>& dst,
                         AscendStream& stream = AscendStream::Null());
@@ -458,6 +458,13 @@ src.size(), fx, and fy; the type of dst is the same as of src.
 @param fy     scale factor along the vertical axis; when it equals 0, it is computed as
 \f[(𝚍𝚘𝚞𝚋𝚕𝚎)𝚍𝚜𝚒𝚣𝚎.𝚑𝚎𝚒𝚐𝚑𝚝/𝚜𝚛𝚌.𝚛𝚘𝚠𝚜\f]
 @param interpolation    interpolation method(see **cv.cann.InterpolationFlags**)
+@note  There are some constraints for the input datatype:
+  when resampling using
+    nearest neighbor or bilinear interpolation: Input images must be uint8.
+    bicubic interpolation: Input images can be of different types, output images must be float or
+uint8. pixel area interpolation: Input images can be of different types but output images are always
+float.
+
 @sa cv::resize
 */
 
@@ -482,10 +489,73 @@ CV_EXPORTS_W void resize(InputArray _src, OutputArray _dst, Size dsize, double i
                          double inv_scale_y, int interpolation,
                          AscendStream& stream = AscendStream::Null());
 /** @overload */
-CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize, double inv_scale_x,
-                         double inv_scale_y, int interpolation,
+CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize,
+                         double inv_scale_x, double inv_scale_y, int interpolation,
                          AscendStream& stream = AscendStream::Null());
 
+/** @brief crop a sub image from a big one, and resize it to certain size.
+
+@param src input array.
+@param rect a rect to crop a array to
+@param dsize  output image size; if it equals zero, it is computed as cv::resize do.
+@param fx     scale factor along the horizontal axis; when it equals 0, it is computed as
+\f[(𝚍𝚘𝚞𝚋𝚕𝚎)𝚍𝚜𝚒𝚣𝚎.𝚠𝚒𝚍𝚝𝚑/𝚜𝚛𝚌.𝚌𝚘𝚕𝚜\f]
+
+@param fy     scale factor along the vertical axis; when it equals 0, it is computed as
+\f[(𝚍𝚘𝚞𝚋𝚕𝚎)𝚍𝚜𝚒𝚣𝚎.𝚑𝚎𝚒𝚐𝚑𝚝/𝚜𝚛𝚌.𝚛𝚘𝚠𝚜\f]
+@param interpolation    interpolation method, only support INTER_NEAREST and INTER_LINEAR here.
+    (see **cv.cann.InterpolationFlags**)
+
+@note  The input images must be uint8, and only GRAY and BGR images are supported.
+
+@sa cv::gapi::crop, cv::resize, cv::cann::resize
+*/
+CV_EXPORTS_W void cropResize(const InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
+                             double fx, double fy, int interpolation);
+CV_EXPORTS_W void cropResize(const AscendMat& src, CV_OUT AscendMat& dst, const Rect& rect,
+                             Size dsize, double inv_scale_x, double inv_scale_y, int interpolation);
+
+/** @brief crop a sub image from a big one, and resize it to certain size.
+
+@param src input array.
+@param rect a rect to crop a array to
+@param dsize  output image size; if it equals zero, it is computed as cv::resize do.
+@param fx     scale factor along the horizontal axis; when it equals 0, it is computed as
+\f[(𝚍𝚘𝚞𝚋𝚕𝚎)𝚍𝚜𝚒𝚣𝚎.𝚠𝚒𝚍𝚝𝚑/𝚜𝚛𝚌.𝚌𝚘𝚕𝚜\f]
+
+@param fy     scale factor along the vertical axis; when it equals 0, it is computed as
+\f[(𝚍𝚘𝚞𝚋𝚕𝚎)𝚍𝚜𝚒𝚣𝚎.𝚑𝚎𝚒𝚐𝚑𝚝/𝚜𝚛𝚌.𝚛𝚘𝚠𝚜\f]
+@param interpolation    interpolation method, only support INTER_NEAREST and INTER_LINEAR here.
+    (see **cv.cann.InterpolationFlags**)
+@param borderType
+@note  The input images must be uint8, and only GRAY and BGR images are supported.
+left offset must be a multiple of 16.
+
+@sa cv::gapi::crop, cv::resize, cv::cann::resize
+*/
+
+CV_EXPORTS_W void cropResizeMakeBorder(const InputArray _src, OutputArray _dst, const Rect& rect,
+                                       Size dsize, double inv_scale_x, double inv_scale_y,
+                                       int interpolation, const int borderType, Scalar scalarV,
+                                       int top, int left);
+CV_EXPORTS_W void cropResizeMakeBorder(const AscendMat& src, CV_OUT AscendMat& dst,
+                                       const Rect& rect, Size dsize, double inv_scale_x,
+                                       double inv_scale_y, int interpolation, const int borderType,
+                                       Scalar scalarV, int top, int left);
+CV_EXPORTS_W void batchCropResizeMakeBorder(std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst,
+                                            const Rect& rect, Size dsize, double inv_scale_x,
+                                            double inv_scale_y, int interpolation,
+                                            const int borderType, Scalar scalarV, int top, int left,
+                                            int batchNum);
+CV_EXPORTS_W void batchCropResizeMakeBorder(std::vector<AscendMat>& src,
+                                            std::vector<AscendMat>& dst, const Rect& rect,
+                                            Size dsize, double inv_scale_x, double inv_scale_y,
+                                            int interpolation, const int borderType, Scalar scalarV,
+                                            int top, int left, int batchNum);
+CV_EXPORTS_W void copyMakeBorder(const InputArray _src, OutputArray _dst, int top, int bottom,
+                                 int left, int right, int borderType, const Scalar& value);
+CV_EXPORTS_W void copyMakeBorder(const AscendMat& src, CV_OUT AscendMat& dst, int top, int bottom,
+                                 int left, int right, int borderType, const Scalar& value);
 //! @} cannops_core
 
 //! @addtogroup cannimgproc
