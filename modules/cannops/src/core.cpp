@@ -451,7 +451,7 @@ void cropResizeMakeBorder(const AscendMat& src, AscendMat& dst, const Rect& rect
     CV_Assert(borderType < 2);
     Size ssize = src.size();
     checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
-    dst.create(dsize.height, dsize.width, src.type());
+    dst.create(dsize.height + top, dsize.width + left, src.type());
 
     cropResizeMakeBorder(src, dst, rect, dsize, interpolation, borderType, scalarV, top, left);
 }

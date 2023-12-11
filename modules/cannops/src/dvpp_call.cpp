@@ -68,7 +68,6 @@ std::shared_ptr<hi_void> AscendPicDesc::allocate()
 {
     Pic.picture_address = nullptr;
     uint32_t ret = hi_mpi_dvpp_malloc(0, &Pic.picture_address, Pic.picture_buffer_size);
-    // std::cout << ret << std::endl;
     if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to malloc mem on dvpp");
 
@@ -123,9 +122,18 @@ void vpcCopyMakeBorderWarpper(hi_vpc_chn chnId, hi_vpc_pic_info& inPic, hi_vpc_p
                         .left = static_cast<hi_u32>(offsets[2]),
                         .right = static_cast<hi_u32>(offsets[3]),
                         .border_type = saturate_cast<hi_vpc_bord_type>(bordertype)};
-    make_border_info.scalar_value.val[0] = value[2];
-    make_border_info.scalar_value.val[1] = value[1];
-    make_border_info.scalar_value.val[2] = value[0];
+    if (outPic.picture_format == HI_PIXEL_FORMAT_BGR_888)
+    {
+        make_border_info.scalar_value.val[0] = value[2];
+        make_border_info.scalar_value.val[1] = value[1];
+        make_border_info.scalar_value.val[2] = value[0];
+    }
+    else if (outPic.picture_format == HI_PIXEL_FORMAT_YUV_400)
+    {
+        make_border_info.scalar_value.val[0] = value[0];
+        make_border_info.scalar_value.val[1] = value[1];
+        make_border_info.scalar_value.val[2] = value[2];
+    }
     make_border_info.scalar_value.val[3] = value[3];
     uint32_t ret = hi_mpi_vpc_copy_make_border(chnId, (const hi_vpc_pic_info*)&inPic, &outPic,
                                                make_border_info, taskID, -1);
@@ -155,9 +163,19 @@ void setBatchCropResizeMakeBorder(std::vector<AscendPicDesc>& outPicDesc,
         crop_resize_make_border_info[i].dest_top_offset = top;
         crop_resize_make_border_info[i].dest_left_offset = left;
         crop_resize_make_border_info[i].border_type = static_cast<hi_vpc_bord_type>(borderType);
-        crop_resize_make_border_info[i].scalar_value.val[0] = scalarV[2];
-        crop_resize_make_border_info[i].scalar_value.val[1] = scalarV[1];
-        crop_resize_make_border_info[i].scalar_value.val[2] = scalarV[0];
+        if (crop_resize_make_border_info[i].dest_pic_info.picture_format == HI_PIXEL_FORMAT_BGR_888)
+        {
+            crop_resize_make_border_info[i].scalar_value.val[0] = scalarV[2];
+            crop_resize_make_border_info[i].scalar_value.val[1] = scalarV[1];
+            crop_resize_make_border_info[i].scalar_value.val[2] = scalarV[0];
+        }
+        else if (crop_resize_make_border_info[i].dest_pic_info.picture_format ==
+                 HI_PIXEL_FORMAT_YUV_400)
+        {
+            crop_resize_make_border_info[i].scalar_value.val[0] = scalarV[0];
+            crop_resize_make_border_info[i].scalar_value.val[1] = scalarV[1];
+            crop_resize_make_border_info[i].scalar_value.val[2] = scalarV[2];
+        }
         crop_resize_make_border_info[i].scalar_value.val[3] = scalarV[3];
     }
 }
@@ -254,15 +272,9 @@ hi_pixel_format setPixelFormat(const inMat& mat)
 
 DvppOperatorRunner& DvppOperatorRunner::addInput(const AscendMat& mat)
 {
-    hi_pixel_format _picture_format = setPixelFormat(mat);
-    AscendPicDesc picDesc(mat, _picture_format);
-    aclrtMemcpy2d(picDesc.Pic.picture_address, mat.step, mat.data.get(), mat.step,
-                  picDesc.Pic.picture_width_stride, picDesc.Pic.picture_height_stride,
-                  ACL_MEMCPY_DEVICE_TO_DEVICE);
-    // Mat matHost;
-    // matHost.create(mat.cols, mat.rows, mat.type());
-    // printDVPPdata(matHost, picDesc.Pic);
-    return addInput(picDesc);
+    Mat matHost;
+    mat.download(matHost);
+    return addInput(matHost);
 }
 
 DvppOperatorRunner& DvppOperatorRunner::addInput(const Mat& mat)
@@ -270,11 +282,9 @@ DvppOperatorRunner& DvppOperatorRunner::addInput(const Mat& mat)
     hi_pixel_format _picture_format = setPixelFormat(mat);
 
     AscendPicDesc picDesc(mat, _picture_format);
-    const uint32_t esz = CV_ELEM_SIZE(mat.type());
-    size_t step = esz * mat.cols;
-    aclrtMemcpy2d(picDesc.Pic.picture_address, step, mat.data, mat.step[0],
-                  picDesc.Pic.picture_width_stride, picDesc.Pic.picture_height_stride,
-                  ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy2d(picDesc.Pic.picture_address, picDesc.Pic.picture_width_stride, mat.data,
+                  mat.step[0], mat.step[0], picDesc.Pic.picture_height, ACL_MEMCPY_HOST_TO_DEVICE);
+
     return addInput(picDesc);
 }
 
@@ -287,8 +297,8 @@ DvppOperatorRunner& DvppOperatorRunner::addBatchInput(const std::vector<cv::Mat>
         AscendPicDesc picDesc(mats[i], _picture_format);
         const uint32_t esz = CV_ELEM_SIZE(mats[i].type());
         size_t step = esz * mats[i].cols;
-        aclrtMemcpy2d(picDesc.Pic.picture_address, step, mats[i].data, mats[i].step[0],
-                      picDesc.Pic.picture_width_stride, picDesc.Pic.picture_height_stride,
+        aclrtMemcpy2d(picDesc.Pic.picture_address, picDesc.Pic.picture_width_stride, mats[i].data,
+                      mats[i].step[0], mats[i].step[0], picDesc.Pic.picture_height,
                       ACL_MEMCPY_HOST_TO_DEVICE);
         addInput(picDesc);
     }
@@ -301,9 +311,9 @@ DvppOperatorRunner& DvppOperatorRunner::addBatchInput(const std::vector<AscendMa
     {
         hi_pixel_format _picture_format = setPixelFormat(mats[i]);
         AscendPicDesc picDesc(mats[i], _picture_format);
-        aclrtMemcpy2d(picDesc.Pic.picture_address, mats[i].step, mats[i].data.get(), mats[i].step,
-                      picDesc.Pic.picture_width_stride, picDesc.Pic.picture_height_stride,
-                      ACL_MEMCPY_DEVICE_TO_DEVICE);
+        aclrtMemcpy2d(picDesc.Pic.picture_address, picDesc.Pic.picture_width_stride,
+                      mats[i].data.get(), mats[i].step, mats[i].step, picDesc.Pic.picture_height,
+                      ACL_MEMCPY_HOST_TO_DEVICE);
         addInput(picDesc);
     }
     return *this;
@@ -338,9 +348,8 @@ DvppOperatorRunner& DvppOperatorRunner::addBatchOutput(const std::vector<cv::Mat
         hi_pixel_format _picture_format = setPixelFormat(mats[i]);
         AscendPicDesc picDesc(mats[i], _picture_format);
         const uint32_t esz = CV_ELEM_SIZE(mats[i].type());
-        size_t step = esz * mats[i].cols;
-        aclrtMemcpy2d(picDesc.Pic.picture_address, step, mats[i].data, mats[i].step[0],
-                      picDesc.Pic.picture_width_stride, picDesc.Pic.picture_height_stride,
+        aclrtMemcpy2d(picDesc.Pic.picture_address, picDesc.Pic.picture_width_stride, mats[i].data,
+                      mats[i].step[0], mats[i].step[0], picDesc.Pic.picture_height,
                       ACL_MEMCPY_HOST_TO_DEVICE);
         addOutput(picDesc);
     }
@@ -353,9 +362,9 @@ DvppOperatorRunner& DvppOperatorRunner::addBatchOutput(const std::vector<AscendM
     {
         hi_pixel_format _picture_format = setPixelFormat(mats[i]);
         AscendPicDesc picDesc(mats[i], _picture_format);
-        aclrtMemcpy2d(picDesc.Pic.picture_address, mats[i].step, mats[i].data.get(), mats[i].step,
-                      picDesc.Pic.picture_width_stride, picDesc.Pic.picture_height_stride,
-                      ACL_MEMCPY_DEVICE_TO_DEVICE);
+        aclrtMemcpy2d(picDesc.Pic.picture_address, picDesc.Pic.picture_width_stride,
+                      mats[i].data.get(), mats[i].step, mats[i].step, picDesc.Pic.picture_height,
+                      ACL_MEMCPY_HOST_TO_DEVICE);
         addOutput(picDesc);
     }
     return *this;
@@ -368,25 +377,18 @@ DvppOperatorRunner& DvppOperatorRunner::getResult(Mat& dst, uint32_t& taskIDResu
     const uint32_t esz = CV_ELEM_SIZE(dst.type());
     size_t step = esz * dst.cols;
 
-    aclrtMemcpy2d(dst.data, dst.step[0], outputDesc_[0].Pic.picture_address, step,
-                  outputDesc_[0].Pic.picture_width_stride, outputDesc_[0].Pic.picture_height_stride,
-                  ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy2d(dst.data, dst.step[0], outputDesc_[0].Pic.picture_address,
+                  outputDesc_[0].Pic.picture_width_stride, dst.step[0],
+                  outputDesc_[0].Pic.picture_height, ACL_MEMCPY_DEVICE_TO_HOST);
     return *this;
 }
 
 DvppOperatorRunner& DvppOperatorRunner::getResult(AscendMat& dst, uint32_t& taskIDResult)
 {
-    uint32_t ret = hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
-    if (ret != HI_SUCCESS)
-        CV_Error(Error::StsBadFlag, "failed to get process result.");
-    // const uint32_t esz = CV_ELEM_SIZE(dst.type());
-    // size_t step = esz * dst.cols;
-    // aclrtMemcpy2d(dst.data.get(), dst.step, outputDesc_[0].data.get(), step,
-    //               outputDesc_[0].Pic.picture_width_stride,
-    //               outputDesc_[0].Pic.picture_height_stride, ACL_MEMCPY_DEVICE_TO_DEVICE);
-    uint32_t size = dst.rows * dst.cols * dst.elemSize();
-    aclrtMemcpy(dst.data.get(), size, outputDesc_[0].Pic.picture_address, size,
-                ACL_MEMCPY_DEVICE_TO_DEVICE);
+    Mat matHost;
+    matHost.create(dst.rows, dst.cols, dst.type());
+    getResult(matHost, taskIDResult);
+    dst.upload(matHost);
     return *this;
 }
 
@@ -397,13 +399,11 @@ DvppOperatorRunner& DvppOperatorRunner::getResult(std::vector<cv::Mat>& dst, uin
     if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to get process result.");
     CV_Assert(batchNum >= 1);
-    const uint32_t esz = CV_ELEM_SIZE(dst[0].type());
-    size_t step = esz * dst[0].cols;
     for (int i = 0; i < batchNum; i++)
     {
-        aclrtMemcpy2d(dst[i].data, dst[i].step[0], outputDesc_[i].Pic.picture_address, step,
-                      outputDesc_[i].Pic.picture_width_stride,
-                      outputDesc_[i].Pic.picture_height_stride, ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy2d(dst[i].data, dst[i].step[0], outputDesc_[0].Pic.picture_address,
+                      outputDesc_[0].Pic.picture_width_stride, dst[i].step[0],
+                      outputDesc_[0].Pic.picture_height, ACL_MEMCPY_DEVICE_TO_HOST);
     }
     return *this;
 }
@@ -416,9 +416,13 @@ DvppOperatorRunner& DvppOperatorRunner::getResult(std::vector<AscendMat>& dst,
     CV_Assert(batchNum >= 1);
     for (int i = 0; i < batchNum; i++)
     {
-        aclrtMemcpy2d(dst[i].data.get(), dst[i].step, outputDesc_[i].Pic.picture_address,
-                      dst[i].step, outputDesc_[i].Pic.picture_width_stride,
-                      outputDesc_[i].Pic.picture_height_stride, ACL_MEMCPY_DEVICE_TO_DEVICE);
+        Mat matHost;
+        matHost.create(dst[i].rows, dst[i].cols, dst[i].type());
+        getResult(matHost, taskIDResult);
+        aclrtMemcpy2d(matHost.data, matHost.step[0], outputDesc_[0].Pic.picture_address,
+                      outputDesc_[0].Pic.picture_width_stride, matHost.step[0],
+                      outputDesc_[0].Pic.picture_height, ACL_MEMCPY_DEVICE_TO_HOST);
+        dst[i].upload(matHost);
     }
     return *this;
 }
