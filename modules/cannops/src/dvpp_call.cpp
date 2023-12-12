@@ -224,8 +224,8 @@ void vpcCropResizeMakeBorderWarpper(hi_vpc_chn chnId, std::vector<AscendPicDesc>
         CV_Error(Error::StsBadFlag, "failed to crop, resize and make border of image");
 }
 
-/******************************DvppOperatorRunner****************************/
-DvppOperatorRunner& DvppOperatorRunner::reset()
+/******************************DvppOperatorDesc****************************/
+DvppOperatorDesc& DvppOperatorDesc::reset()
 {
     uint32_t ret = hi_mpi_vpc_destroy_chn(chnId);
     if (ret != HI_SUCCESS)
@@ -239,7 +239,7 @@ void initDvpp() { hi_mpi_sys_init(); }
 
 void finalizeDvpp() { hi_mpi_sys_exit(); }
 
-DvppOperatorRunner& DvppOperatorRunner::createChannel()
+DvppOperatorDesc& DvppOperatorDesc::createChannel()
 {
     uint32_t ret = hi_mpi_vpc_sys_create_chn(&chnId, &stChnAttr);
     if (ret != HI_SUCCESS)
@@ -247,7 +247,8 @@ DvppOperatorRunner& DvppOperatorRunner::createChannel()
     return *this;
 }
 
-DvppOperatorRunner& DvppOperatorRunner::addInput(AscendPicDesc& picDesc)
+// copy input array to dvpp memory
+DvppOperatorDesc& DvppOperatorDesc::addInput(AscendPicDesc& picDesc)
 {
     inputDesc_.push_back(picDesc);
     holder.insert(picDesc.data);
@@ -270,14 +271,14 @@ hi_pixel_format setPixelFormat(const inMat& mat)
     return _picture_format;
 }
 
-DvppOperatorRunner& DvppOperatorRunner::addInput(const AscendMat& mat)
+DvppOperatorDesc& DvppOperatorDesc::addInput(const AscendMat& mat)
 {
     Mat matHost;
     mat.download(matHost);
     return addInput(matHost);
 }
 
-DvppOperatorRunner& DvppOperatorRunner::addInput(const Mat& mat)
+DvppOperatorDesc& DvppOperatorDesc::addInput(const Mat& mat)
 {
     hi_pixel_format _picture_format = setPixelFormat(mat);
 
@@ -288,7 +289,7 @@ DvppOperatorRunner& DvppOperatorRunner::addInput(const Mat& mat)
     return addInput(picDesc);
 }
 
-DvppOperatorRunner& DvppOperatorRunner::addBatchInput(const std::vector<cv::Mat>& mats,
+DvppOperatorDesc& DvppOperatorDesc::addBatchInput(const std::vector<cv::Mat>& mats,
                                                       int batchNum)
 {
     for (int i = 0; i < batchNum; i++)
@@ -304,7 +305,7 @@ DvppOperatorRunner& DvppOperatorRunner::addBatchInput(const std::vector<cv::Mat>
     }
     return *this;
 }
-DvppOperatorRunner& DvppOperatorRunner::addBatchInput(const std::vector<AscendMat>& mats,
+DvppOperatorDesc& DvppOperatorDesc::addBatchInput(const std::vector<AscendMat>& mats,
                                                       int batchNum)
 {
     for (int i = 0; i < batchNum; i++)
@@ -319,28 +320,29 @@ DvppOperatorRunner& DvppOperatorRunner::addBatchInput(const std::vector<AscendMa
     return *this;
 }
 
-DvppOperatorRunner& DvppOperatorRunner::addOutput(AscendPicDesc& picDesc)
+// malloc memory foroutput
+DvppOperatorDesc& DvppOperatorDesc::addOutput(AscendPicDesc& picDesc)
 {
     outputDesc_.push_back(picDesc);
     holder.insert(picDesc.data);
     return *this;
 }
 
-DvppOperatorRunner& DvppOperatorRunner::addOutput(AscendMat& mat)
+DvppOperatorDesc& DvppOperatorDesc::addOutput(AscendMat& mat)
 {
     hi_pixel_format _picture_format = setPixelFormat(mat);
     AscendPicDesc picDesc(mat, _picture_format);
     return addOutput(picDesc);
 }
 
-DvppOperatorRunner& DvppOperatorRunner::addOutput(Mat& mat)
+DvppOperatorDesc& DvppOperatorDesc::addOutput(Mat& mat)
 {
     hi_pixel_format _picture_format = setPixelFormat(mat);
     AscendPicDesc picDesc(mat, _picture_format);
     return addOutput(picDesc);
 }
 
-DvppOperatorRunner& DvppOperatorRunner::addBatchOutput(const std::vector<cv::Mat>& mats,
+DvppOperatorDesc& DvppOperatorDesc::addBatchOutput(const std::vector<cv::Mat>& mats,
                                                        int batchNum)
 {
     for (int i = 0; i < batchNum; i++)
@@ -355,7 +357,7 @@ DvppOperatorRunner& DvppOperatorRunner::addBatchOutput(const std::vector<cv::Mat
     }
     return *this;
 }
-DvppOperatorRunner& DvppOperatorRunner::addBatchOutput(const std::vector<AscendMat>& mats,
+DvppOperatorDesc& DvppOperatorDesc::addBatchOutput(const std::vector<AscendMat>& mats,
                                                        int batchNum)
 {
     for (int i = 0; i < batchNum; i++)
@@ -369,7 +371,9 @@ DvppOperatorRunner& DvppOperatorRunner::addBatchOutput(const std::vector<AscendM
     }
     return *this;
 }
-DvppOperatorRunner& DvppOperatorRunner::getResult(Mat& dst, uint32_t& taskIDResult)
+
+// get process result and copy it to host/device
+DvppOperatorDesc& DvppOperatorDesc::getResult(Mat& dst, uint32_t& taskIDResult)
 {
     uint32_t ret = hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
     if (ret != HI_SUCCESS)
@@ -383,7 +387,7 @@ DvppOperatorRunner& DvppOperatorRunner::getResult(Mat& dst, uint32_t& taskIDResu
     return *this;
 }
 
-DvppOperatorRunner& DvppOperatorRunner::getResult(AscendMat& dst, uint32_t& taskIDResult)
+DvppOperatorDesc& DvppOperatorDesc::getResult(AscendMat& dst, uint32_t& taskIDResult)
 {
     Mat matHost;
     matHost.create(dst.rows, dst.cols, dst.type());
@@ -392,7 +396,7 @@ DvppOperatorRunner& DvppOperatorRunner::getResult(AscendMat& dst, uint32_t& task
     return *this;
 }
 
-DvppOperatorRunner& DvppOperatorRunner::getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult,
+DvppOperatorDesc& DvppOperatorDesc::getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult,
                                                   int batchNum)
 {
     uint32_t ret = hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
@@ -407,7 +411,7 @@ DvppOperatorRunner& DvppOperatorRunner::getResult(std::vector<cv::Mat>& dst, uin
     }
     return *this;
 }
-DvppOperatorRunner& DvppOperatorRunner::getResult(std::vector<AscendMat>& dst,
+DvppOperatorDesc& DvppOperatorDesc::getResult(std::vector<AscendMat>& dst,
                                                   uint32_t& taskIDResult, int batchNum)
 {
     uint32_t ret = hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);

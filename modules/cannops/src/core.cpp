@@ -282,7 +282,7 @@ void checkResize(Size& ssize, Size& dsize, double inv_scale_x, double inv_scale_
 template <typename inMat, typename outMat>
 void resize(const inMat& src, outMat& dst, int interpolation)
 {
-    DvppOperatorRunner op;
+    DvppOperatorDesc op;
     op.Init().createChannel().addInput(src).addOutput(dst);
     uint32_t taskID = 0;
     vpcResizeWarpper(op.chnId, op.inputDesc_[0].Pic, op.outputDesc_[0].Pic, interpolation, &taskID);
@@ -360,7 +360,7 @@ void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x, d
 template <typename inMat, typename outMat>
 void cropResize(const inMat& src, outMat& dst, const Rect& rect, Size dsize, int interpolation)
 {
-    DvppOperatorRunner op;
+    DvppOperatorDesc op;
     op.Init().createChannel().addInput(src).addOutput(dst);
     uint32_t taskID = 0;
     int cnt = 1;
@@ -398,7 +398,7 @@ template <typename inMat, typename outMat>
 void copyMakeBorder(const inMat& src, outMat& dst, int* offsets, int borderType,
                     const Scalar& value)
 {
-    DvppOperatorRunner op;
+    DvppOperatorDesc op;
     op.Init().createChannel().addInput(src).addOutput(dst);
     uint32_t taskID = 0;
     vpcCopyMakeBorderWarpper(op.chnId, op.inputDesc_[0].Pic, op.outputDesc_[0].Pic, &taskID, offsets,
@@ -433,7 +433,7 @@ void cropResizeMakeBorder(const inMat& src, outMat& dst, const Rect& rect, Size 
                           int interpolation, const int borderType, Scalar scalarV, int top,
                           int left)
 {
-    DvppOperatorRunner op;
+    DvppOperatorDesc op;
     op.Init().createChannel().addInput(src).addOutput(dst);
     uint32_t taskID = 0;
     int cnt = 1;
@@ -476,7 +476,7 @@ void batchCropResizeMakeBorder(std::vector<inMat>& src, std::vector<outMat>& dst
                                Size dsize, int interpolation, const int borderType, Scalar scalarV,
                                int top, int left, int batchNum)
 {
-    DvppOperatorRunner op;
+    DvppOperatorDesc op;
     op.Init().createChannel().addBatchInput(src, batchNum).addBatchOutput(dst, batchNum);
 
     uint32_t taskID = 0;

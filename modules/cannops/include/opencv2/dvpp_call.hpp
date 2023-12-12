@@ -64,41 +64,40 @@ void vpcCopyMakeBorderWarpper(hi_vpc_chn chnId, hi_vpc_pic_info& inPic, hi_vpc_p
                               uint32_t* taskID, int* offsets, int bordertype, Scalar value);
 /*****************************************************************************/
 
-class DvppOperatorRunner
+class DvppOperatorDesc
 {
 private:
-    DvppOperatorRunner& addInput(AscendPicDesc& picDesc);
-    DvppOperatorRunner& addOutput(AscendPicDesc& picDesc);
+    DvppOperatorDesc& addInput(AscendPicDesc& picDesc);
+    DvppOperatorDesc& addOutput(AscendPicDesc& picDesc);
     std::set<std::shared_ptr<hi_void>> holder;
 
 public:
-    DvppOperatorRunner() {}
-    virtual ~DvppOperatorRunner() { reset(); }
-    DvppOperatorRunner& addInput(const AscendMat& mat);
-    DvppOperatorRunner& addOutput(AscendMat& mat);
-    DvppOperatorRunner& addInput(const Mat& mat);
-    DvppOperatorRunner& addBatchInput(const std::vector<cv::Mat>& mats, int batchNum);
-    DvppOperatorRunner& addBatchInput(const std::vector<AscendMat>& mats, int batchNum);
-    DvppOperatorRunner& addOutput(Mat& mat);
-    DvppOperatorRunner& addBatchOutput(const std::vector<cv::Mat>& mats, int batchNum);
-    DvppOperatorRunner& addBatchOutput(const std::vector<AscendMat>& mats, int batchNum);
+    DvppOperatorDesc() {}
+    virtual ~DvppOperatorDesc() { reset(); }
+    DvppOperatorDesc& addInput(const AscendMat& mat);
+    DvppOperatorDesc& addOutput(AscendMat& mat);
+    DvppOperatorDesc& addInput(const Mat& mat);
+    DvppOperatorDesc& addBatchInput(const std::vector<cv::Mat>& mats, int batchNum);
+    DvppOperatorDesc& addBatchInput(const std::vector<AscendMat>& mats, int batchNum);
+    DvppOperatorDesc& addOutput(Mat& mat);
+    DvppOperatorDesc& addBatchOutput(const std::vector<cv::Mat>& mats, int batchNum);
+    DvppOperatorDesc& addBatchOutput(const std::vector<AscendMat>& mats, int batchNum);
 
-    DvppOperatorRunner& getResult(Mat& dst, uint32_t& taskIDResult);
-    DvppOperatorRunner& getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult, int batchNum);
-    DvppOperatorRunner& getResult(std::vector<AscendMat>& dst, uint32_t& taskIDResult,
-                                  int batchNum);
+    DvppOperatorDesc& getResult(Mat& dst, uint32_t& taskIDResult);
+    DvppOperatorDesc& getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult, int batchNum);
+    DvppOperatorDesc& getResult(std::vector<AscendMat>& dst, uint32_t& taskIDResult, int batchNum);
 
-    DvppOperatorRunner& getResult(AscendMat& dst, uint32_t& taskIDResult);
+    DvppOperatorDesc& getResult(AscendMat& dst, uint32_t& taskIDResult);
 
-    DvppOperatorRunner& reset();
-    DvppOperatorRunner& createChannel();
+    DvppOperatorDesc& reset();
+    DvppOperatorDesc& createChannel();
 
     std::vector<AscendPicDesc> inputDesc_;
     std::vector<AscendPicDesc> outputDesc_;
 
     hi_vpc_chn chnId;
     hi_vpc_chn_attr stChnAttr;
-    DvppOperatorRunner& Init()
+    DvppOperatorDesc& Init()
     {
         chnId = 0;
         stChnAttr = {};
