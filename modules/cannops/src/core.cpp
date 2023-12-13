@@ -474,40 +474,40 @@ void cropResizeMakeBorder(const InputArray _src, OutputArray _dst, const Rect& r
 template <typename inMat, typename outMat>
 void batchCropResizeMakeBorder(std::vector<inMat>& src, std::vector<outMat>& dst, const Rect& rect,
                                Size dsize, int interpolation, const int borderType, Scalar scalarV,
-                               int top, int left, int batchNum)
+                               int top, int left, int batchSize)
 {
     DvppOperatorDesc op;
-    op.Init().createChannel().addBatchInput(src, batchNum).addBatchOutput(dst, batchNum);
+    op.Init().createChannel().addBatchInput(src, batchSize).addBatchOutput(dst, batchSize);
 
     uint32_t taskID = 0;
-    int cnt[batchNum];
+    int cnt[batchSize];
     vpcBatchCropResizeMakeBorderWarpper(op.chnId, op.inputDesc_, op.outputDesc_, cnt, &taskID, rect,
                                         dsize, interpolation, borderType, scalarV, top, left,
-                                        batchNum);
+                                        batchSize);
     uint32_t taskIDResult = taskID;
-    op.getResult(dst, taskIDResult, batchNum);
+    op.getResult(dst, taskIDResult, batchSize);
 }
 
 void batchCropResizeMakeBorder(std::vector<AscendMat>& src, std::vector<AscendMat>& dst,
                                const Rect& rect, Size dsize, double inv_scale_x, double inv_scale_y,
                                int interpolation, const int borderType, Scalar scalarV, int top,
-                               int left, int batchNum)
+                               int left, int batchSize)
 {
     Size ssize = src[0].size();
     checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
     batchCropResizeMakeBorder(src, dst, rect, dsize, interpolation, borderType, scalarV, top, left,
-                              batchNum);
+                              batchSize);
 }
 
 void batchCropResizeMakeBorder(std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst,
                                const Rect& rect, Size dsize, double inv_scale_x, double inv_scale_y,
                                int interpolation, const int borderType, Scalar scalarV, int top,
-                               int left, int batchNum)
+                               int left, int batchSize)
 {
     Size ssize = src[0].size();
     checkResize(ssize, dsize, inv_scale_x, inv_scale_y, interpolation);
     batchCropResizeMakeBorder(src, dst, rect, dsize, interpolation, borderType, scalarV, top, left,
-                              batchNum);
+                              batchSize);
 }
 
 } // namespace cann

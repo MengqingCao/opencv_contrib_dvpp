@@ -145,7 +145,7 @@ void setBatchCropResizeMakeBorder(std::vector<AscendPicDesc>& outPicDesc,
                                   hi_vpc_crop_resize_border_region crop_resize_make_border_info[],
                                   const Rect& rect, Size dsize, int interpolation,
                                   const int borderType, Scalar scalarV, int top, int left,
-                                  int batchNum)
+                                  int batchSize)
 {
     hi_vpc_crop_region cropRegion = {.top_offset = static_cast<hi_u32>(rect.y),
                                      .left_offset = static_cast<hi_u32>(rect.x),
@@ -155,7 +155,7 @@ void setBatchCropResizeMakeBorder(std::vector<AscendPicDesc>& outPicDesc,
     hi_vpc_resize_info resize_info = {.resize_width = static_cast<hi_u32>(dsize.width),
                                       .resize_height = static_cast<hi_u32>(dsize.height),
                                       .interpolation = static_cast<hi_u32>(interpolation)};
-    for (int i = 0; i < batchNum; i++)
+    for (int i = 0; i < batchSize; i++)
     {
         crop_resize_make_border_info[i].dest_pic_info = outPicDesc[i].Pic;
         crop_resize_make_border_info[i].crop_region = cropRegion;
@@ -184,11 +184,11 @@ void vpcBatchCropResizeMakeBorderWarpper(hi_vpc_chn chnId, std::vector<AscendPic
                                          std::vector<AscendPicDesc>& outPicDesc, int cnt[],
                                          uint32_t* taskID, const Rect& rect, Size dsize,
                                          int interpolation, const int borderType, Scalar scalarV,
-                                         int top, int left, int batchNum)
+                                         int top, int left, int batchSize)
 {
-    hi_vpc_crop_resize_border_region crop_resize_make_border_info[batchNum];
-    hi_vpc_pic_info* batchIn[batchNum];
-    for (int i = 0; i < batchNum; i++)
+    hi_vpc_crop_resize_border_region crop_resize_make_border_info[batchSize];
+    hi_vpc_pic_info* batchIn[batchSize];
+    for (int i = 0; i < batchSize; i++)
     {
         cnt[i] = 1;
         batchIn[i] = &(inPicDesc[i].Pic);
@@ -198,10 +198,10 @@ void vpcBatchCropResizeMakeBorderWarpper(hi_vpc_chn chnId, std::vector<AscendPic
     left = ALIGN_UP(left, alignment);
 
     setBatchCropResizeMakeBorder(outPicDesc, crop_resize_make_border_info, rect, dsize,
-                                 interpolation, borderType, scalarV, top, left, batchNum);
+                                 interpolation, borderType, scalarV, top, left, batchSize);
 
     uint32_t ret = hi_mpi_vpc_batch_crop_resize_make_border(chnId, (const hi_vpc_pic_info**)batchIn,
-                                                            batchNum, crop_resize_make_border_info,
+                                                            batchSize, crop_resize_make_border_info,
                                                             (hi_u32*)cnt, taskID, -1);
     if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to crop image");
@@ -290,9 +290,9 @@ DvppOperatorDesc& DvppOperatorDesc::addInput(const Mat& mat)
 }
 
 DvppOperatorDesc& DvppOperatorDesc::addBatchInput(const std::vector<cv::Mat>& mats,
-                                                      int batchNum)
+                                                      int batchSize)
 {
-    for (int i = 0; i < batchNum; i++)
+    for (int i = 0; i < batchSize; i++)
     {
         hi_pixel_format _picture_format = setPixelFormat(mats[i]);
         AscendPicDesc picDesc(mats[i], _picture_format);
@@ -306,9 +306,9 @@ DvppOperatorDesc& DvppOperatorDesc::addBatchInput(const std::vector<cv::Mat>& ma
     return *this;
 }
 DvppOperatorDesc& DvppOperatorDesc::addBatchInput(const std::vector<AscendMat>& mats,
-                                                      int batchNum)
+                                                      int batchSize)
 {
-    for (int i = 0; i < batchNum; i++)
+    for (int i = 0; i < batchSize; i++)
     {
         hi_pixel_format _picture_format = setPixelFormat(mats[i]);
         AscendPicDesc picDesc(mats[i], _picture_format);
@@ -343,9 +343,9 @@ DvppOperatorDesc& DvppOperatorDesc::addOutput(Mat& mat)
 }
 
 DvppOperatorDesc& DvppOperatorDesc::addBatchOutput(const std::vector<cv::Mat>& mats,
-                                                       int batchNum)
+                                                       int batchSize)
 {
-    for (int i = 0; i < batchNum; i++)
+    for (int i = 0; i < batchSize; i++)
     {
         hi_pixel_format _picture_format = setPixelFormat(mats[i]);
         AscendPicDesc picDesc(mats[i], _picture_format);
@@ -358,9 +358,9 @@ DvppOperatorDesc& DvppOperatorDesc::addBatchOutput(const std::vector<cv::Mat>& m
     return *this;
 }
 DvppOperatorDesc& DvppOperatorDesc::addBatchOutput(const std::vector<AscendMat>& mats,
-                                                       int batchNum)
+                                                       int batchSize)
 {
-    for (int i = 0; i < batchNum; i++)
+    for (int i = 0; i < batchSize; i++)
     {
         hi_pixel_format _picture_format = setPixelFormat(mats[i]);
         AscendPicDesc picDesc(mats[i], _picture_format);
@@ -397,13 +397,13 @@ DvppOperatorDesc& DvppOperatorDesc::getResult(AscendMat& dst, uint32_t& taskIDRe
 }
 
 DvppOperatorDesc& DvppOperatorDesc::getResult(std::vector<cv::Mat>& dst, uint32_t& taskIDResult,
-                                                  int batchNum)
+                                                  int batchSize)
 {
     uint32_t ret = hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
     if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to get process result.");
-    CV_Assert(batchNum >= 1);
-    for (int i = 0; i < batchNum; i++)
+    CV_Assert(batchSize >= 1);
+    for (int i = 0; i < batchSize; i++)
     {
         aclrtMemcpy2d(dst[i].data, dst[i].step[0], outputDesc_[0].Pic.picture_address,
                       outputDesc_[0].Pic.picture_width_stride, dst[i].step[0],
@@ -412,13 +412,13 @@ DvppOperatorDesc& DvppOperatorDesc::getResult(std::vector<cv::Mat>& dst, uint32_
     return *this;
 }
 DvppOperatorDesc& DvppOperatorDesc::getResult(std::vector<AscendMat>& dst,
-                                                  uint32_t& taskIDResult, int batchNum)
+                                                  uint32_t& taskIDResult, int batchSize)
 {
     uint32_t ret = hi_mpi_vpc_get_process_result(chnId, taskIDResult, -1);
     if (ret != HI_SUCCESS)
         CV_Error(Error::StsBadFlag, "failed to get process result.");
-    CV_Assert(batchNum >= 1);
-    for (int i = 0; i < batchNum; i++)
+    CV_Assert(batchSize >= 1);
+    for (int i = 0; i < batchSize; i++)
     {
         Mat matHost;
         matHost.create(dst[i].rows, dst[i].cols, dst[i].type());

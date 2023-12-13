@@ -438,14 +438,6 @@ PERF_TEST_P(NPU, CROP_RESIZE_DVPP, DVPP_ASCEND_MAT_SIZES)
     declare.in(cpuMat, WARMUP_RNG);
     const Rect b(1, 0, size.width / 2, size.height);
     Size dsize = Size(size.width / 4, size.height / 2);
-    int top, bottom, left, right;
-    top = (int)(20);
-    bottom = 0;
-    left = (int)(20);
-    right = 0;
-    int borderType = 0;
-    float scalarV[3] = {1, 1, 1};
-    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
 
     TEST_CYCLE_N(10) { cv::cann::cropResize(cpuMat, checker, b, dsize, 0, 0, 1); }
 
@@ -459,14 +451,6 @@ PERF_TEST_P(CPU, CROP_RESIZE_DVPP, DVPP_ASCEND_MAT_SIZES)
     declare.in(cpuMat, WARMUP_RNG);
     const Rect b(1, 0, size.width / 2, size.height);
     Size dsize = Size(size.width / 4, size.height / 2);
-    int top, bottom, left, right;
-    top = (int)(20);
-    bottom = 0;
-    left = (int)(20);
-    right = 0;
-    int borderType = 0;
-    float scalarV[3] = {1, 1, 1};
-    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
 
     TEST_CYCLE_N(10)
     {
