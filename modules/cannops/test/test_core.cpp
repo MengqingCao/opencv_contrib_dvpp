@@ -305,7 +305,9 @@ TEST(CORE, COPY_MAKE_BORDER)
 
     Mat cpuOpRet, checker;
     RNG rng(12345);
-    int scalarV[3] = {rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255)};
+    Scalar value = {static_cast<double>(rng.uniform(0, 255)),
+                    static_cast<double>(rng.uniform(0, 255)),
+                    static_cast<double>(rng.uniform(0, 255))};
     int top, bottom, left, right;
     top = 20;
     bottom = 30;
@@ -313,7 +315,6 @@ TEST(CORE, COPY_MAKE_BORDER)
     right = 20;
 
     int borderType = 0;
-    Scalar value = {scalarV[0], scalarV[1], scalarV[2]};
     for (borderType = 0; borderType < 2; borderType++)
     {
         cv::cann::copyMakeBorder(cpuMat, checker, top, bottom, left, right, borderType, value);

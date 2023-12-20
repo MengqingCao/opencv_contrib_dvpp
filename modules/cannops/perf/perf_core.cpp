@@ -260,11 +260,9 @@ PERF_TEST_P(NPU, CROP_RESIZE_MAKE_BORDER, DVPP_ASCEND_MAT_SIZES)
 
     const Rect b(1, 0, size.width / 2, size.height);
     Size dsize = Size(size.width / 4, size.height / 2);
-    int top, bottom, left, right;
+    int top, left;
     top = (int)(20);
-    bottom = 0;
     left = (int)(20);
-    right = 0;
     int borderType = 0;
     float scalarV[3] = {1, 1, 1};
     Scalar value = {scalarV[0], scalarV[1], scalarV[2]};

@@ -504,13 +504,11 @@ enum InterpolationFlags
     INTER_MAX = 7,
 };
 
-CV_EXPORTS_W void resize(InputArray _src, OutputArray _dst, Size dsize, double inv_scale_x,
-                         double inv_scale_y, int interpolation,
-                         AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void resize(InputArray src, OutputArray dst, Size dsize, double fx, double fy,
+                         int interpolation, AscendStream& stream = AscendStream::Null());
 /** @overload */
-CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize,
-                         double inv_scale_x, double inv_scale_y, int interpolation,
-                         AscendStream& stream = AscendStream::Null());
+CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize, double fx,
+                         double fy, int interpolation, AscendStream& stream = AscendStream::Null());
 
 /** @brief crop a sub image from a big one, and resize it to certain size.
 @param src input array.
@@ -526,11 +524,11 @@ CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize
 input and output images must in range of [10*6, 4096*4096].
 @sa cv::gapi::crop, cv::resize, cv::cann::resize
 */
-CV_EXPORTS_W void cropResize(const InputArray _src, OutputArray _dst, const Rect& rect, Size dsize,
+CV_EXPORTS_W void cropResize(const InputArray src, OutputArray dst, const Rect& rect, Size dsize,
                              double fx, double fy, int interpolation);
 /** @overload */
 CV_EXPORTS_W void cropResize(const AscendMat& src, CV_OUT AscendMat& dst, const Rect& rect,
-                             Size dsize, double inv_scale_x, double inv_scale_y, int interpolation);
+                             Size dsize, double fx, double fy, int interpolation);
 
 /** @brief crop a sub image from a big one, and resize it to certain size.
 @param src input array.
@@ -541,20 +539,22 @@ CV_EXPORTS_W void cropResize(const AscendMat& src, CV_OUT AscendMat& dst, const 
     (see **cv.cann.InterpolationFlags**)
 @param borderType border extrapolate method, only cv::BorderTypes::BORDER_CONSTANT and
 cv::BorderTypes::BORDER_REPLICATE are supported.
+@param value Border BGR or YUV value if borderType==BORDER_CONSTANT.
+@param top Number of pixels for top padding
+@param left Number of pixels for left padding
 @note  The input images must be uint8, and only GRAY and BGR images are supported. The resolution of
 input and output images must in range of [10*6, 4096*4096].
 @sa cv::gapi::crop, cv::resize, cv::cann::resize, cv::BorderTypes
 */
 
-CV_EXPORTS_W void cropResizeMakeBorder(const InputArray _src, OutputArray _dst, const Rect& rect,
-                                       Size dsize, double inv_scale_x, double inv_scale_y,
-                                       int interpolation, const int borderType, Scalar scalarV,
-                                       int top, int left);
+CV_EXPORTS_W void cropResizeMakeBorder(const InputArray src, OutputArray dst, const Rect& rect,
+                                       Size dsize, double fx, double fy, int interpolation,
+                                       const int borderType, Scalar value, int top, int left);
 /** @overload */
 CV_EXPORTS_W void cropResizeMakeBorder(const AscendMat& src, CV_OUT AscendMat& dst,
-                                       const Rect& rect, Size dsize, double inv_scale_x,
-                                       double inv_scale_y, int interpolation, const int borderType,
-                                       Scalar scalarV, int top, int left);
+                                       const Rect& rect, Size dsize, double fx, double fy,
+                                       int interpolation, const int borderType, Scalar value,
+                                       int top, int left);
 /** @brief Forms a border and fills it with specified bordertype around the copy of input image.
 @param src Source image.
 @param dst Destination image of the same type as src and the size Size(src.cols+left+right,
@@ -573,7 +573,7 @@ cv::BorderTypes::BORDER_REPLICATE are supported.
 input and output images must in range of [10*6, 4096*4096].
 @sa  cv::copyMakeBorder, cv::borderInterpolate
 */
-CV_EXPORTS_W void copyMakeBorder(const InputArray _src, OutputArray _dst, int top, int bottom,
+CV_EXPORTS_W void copyMakeBorder(const InputArray src, OutputArray dst, int top, int bottom,
                                  int left, int right, int borderType, const Scalar& value);
 /** @overload */
 CV_EXPORTS_W void copyMakeBorder(const AscendMat& src, CV_OUT AscendMat& dst, int top, int bottom,
