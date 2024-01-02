@@ -512,6 +512,8 @@ CV_EXPORTS_W void resize(const AscendMat& src, CV_OUT AscendMat& dst, Size dsize
 
 /** @brief crop a sub image from a big one, and resize it to certain size.
 @param src input array.
+@param dst output array; it has the size dsize (when it is non-zero) or the size computed from
+src.size(), fx, and fy; the type of dst is the same as of src.
 @param rect a rect to crop a array to
 @param dsize  output image size; if it equals zero, it is computed as cv::resize do.
 @param fx     scale factor along the horizontal axis; when it equals 0, it is computed as
@@ -532,8 +534,11 @@ CV_EXPORTS_W void cropResize(const AscendMat& src, CV_OUT AscendMat& dst, const 
 
 /** @brief crop a sub image from a big one, and resize it to certain size.
 @param src input array.
+@param dst output array; it has the size (dsize.height + top, dsize.width + left) (when dsize is non-zero) or the size computed from
+src.size(), fx, and fy; the type of dst is the same as of src.
 @param rect a rect to crop a array to
 @param dsize  output image size;
+@param fx     scale factor along the horizontal axis;
 @param fy     scale factor along the vertical axis;
 @param interpolation    interpolation method, only INTER_NEAREST and INTER_LINEAR are supported.
     (see **cv.cann.InterpolationFlags**)
